@@ -54,8 +54,10 @@ Window {
     property string weatherFeels: "21.0°C"
     property int weatherHum: 55
     property string weatherWind: "4.0 km/h"
+    property string weatherPressure: "1013 hPa"
     property string weatherIcon: "󰖙"
     property string weatherDesc: "Despejado"
+    property var weatherHourly: []
     property string mediaTitle: "No hay nada reprc"
     property string mediaArtist: ""
     property bool mediaPlaying: false
@@ -135,8 +137,10 @@ Window {
                     if (d.weather_feels_like !== undefined) desktopWindow.weatherFeels = d.weather_feels_like;
                     if (d.weather_humidity !== undefined) desktopWindow.weatherHum = d.weather_humidity;
                     if (d.weather_wind !== undefined) desktopWindow.weatherWind = d.weather_wind;
+                    if (d.weather_pressure !== undefined) desktopWindow.weatherPressure = d.weather_pressure;
                     if (d.weather_icon !== undefined) desktopWindow.weatherIcon = d.weather_icon;
                     if (d.weather_desc !== undefined) desktopWindow.weatherDesc = d.weather_desc;
+                    if (d.weather_hourly !== undefined) desktopWindow.weatherHourly = d.weather_hourly;
                     if (d.media_title !== undefined) desktopWindow.mediaTitle = d.media_title;
                     if (d.media_artist !== undefined) desktopWindow.mediaArtist = d.media_artist;
                     if (d.media_playing !== undefined) desktopWindow.mediaPlaying = d.media_playing;
@@ -338,15 +342,15 @@ Window {
     }
 
     // =========================================================================
-    // 3. WEATHER DESKTOP WIDGET (DRAGGABLE & TOGGLEABLE)
+    // 3. WEATHER DESKTOP WIDGET (WITH HOURLY FORECAST & RICH METRICS)
     // =========================================================================
     Rectangle {
         id: weatherWidget
         visible: desktopWindow.desktopWidgetsEnabled && desktopWindow.wgtWeatherEnabled
         x: desktopWindow.wgtWeatherX
         y: desktopWindow.wgtWeatherY
-        width: 360
-        height: 115
+        width: 380
+        height: 220
         radius: 16
         color: desktopWindow.themeBg
         opacity: 0.94
@@ -372,32 +376,101 @@ Window {
             }
         }
 
-        RowLayout {
+        ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 14
+            anchors.margins: 14
+            spacing: 10
 
-            Text {
-                text: desktopWindow.weatherIcon
-                font.family: "JetBrainsMono Nerd Font"
-                font.pixelSize: 38
-                color: desktopWindow.themeAccent
+            // Top Info Row
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Rectangle {
+                    width: 44
+                    height: 44
+                    radius: 10
+                    color: desktopWindow.themeCard
+                    border.color: desktopWindow.themeAccent
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: desktopWindow.weatherIcon
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 24
+                        color: desktopWindow.themeAccent
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 1
+                    RowLayout {
+                        Text { text: desktopWindow.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 20; font.weight: Font.Black; color: desktopWindow.themeFg }
+                        Item { Layout.fillWidth: true }
+                        Text { text: "Madrid, ES"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: desktopWindow.themeAccent }
+                    }
+                    Text { text: desktopWindow.weatherDesc + " • Sensación " + desktopWindow.weatherFeels; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: desktopWindow.themeMuted }
+                }
             }
 
-            ColumnLayout {
+            // Metrics Badges
+            RowLayout {
                 Layout.fillWidth: true
-                spacing: 2
-                RowLayout {
-                    Text { text: desktopWindow.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 22; font.weight: Font.Black; color: desktopWindow.themeFg }
-                    Item { Layout.fillWidth: true }
-                    Text { text: "Madrid, ES"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: desktopWindow.themeAccent }
+                spacing: 6
+                Rectangle {
+                    Layout.fillWidth: true; height: 26; radius: 6; color: desktopWindow.themeCard; border.color: desktopWindow.themeBorder; border.width: 1
+                    RowLayout {
+                        anchors.centerIn: parent; spacing: 4
+                        Text { text: "󰈤"; font.pixelSize: 10; color: desktopWindow.themeAccent }
+                        Text { text: desktopWindow.weatherHum + "% Hum"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: desktopWindow.themeFg }
+                    }
                 }
-                Text { text: desktopWindow.weatherDesc; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: desktopWindow.themeMuted }
-                RowLayout {
-                    spacing: 8
-                    Text { text: "Sensación: " + desktopWindow.weatherFeels; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: desktopWindow.themeMuted }
-                    Text { text: "•"; color: desktopWindow.themeBorder }
-                    Text { text: "Humedad: " + desktopWindow.weatherHum + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: desktopWindow.themeMuted }
+                Rectangle {
+                    Layout.fillWidth: true; height: 26; radius: 6; color: desktopWindow.themeCard; border.color: desktopWindow.themeBorder; border.width: 1
+                    RowLayout {
+                        anchors.centerIn: parent; spacing: 4
+                        Text { text: "󰖝"; font.pixelSize: 10; color: desktopWindow.themeAccent }
+                        Text { text: desktopWindow.weatherWind; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: desktopWindow.themeFg }
+                    }
+                }
+                Rectangle {
+                    Layout.fillWidth: true; height: 26; radius: 6; color: desktopWindow.themeCard; border.color: desktopWindow.themeBorder; border.width: 1
+                    RowLayout {
+                        anchors.centerIn: parent; spacing: 4
+                        Text { text: "󰖐"; font.pixelSize: 10; color: desktopWindow.themeAccent }
+                        Text { text: desktopWindow.weatherPressure; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: desktopWindow.themeFg }
+                    }
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: desktopWindow.themeBorder }
+
+            // Hourly Forecast Pills Row
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Repeater {
+                    model: desktopWindow.weatherHourly.slice(0, 5)
+                    delegate: Rectangle {
+                        Layout.fillWidth: true
+                        height: 62
+                        radius: 7
+                        color: desktopWindow.themeCard
+                        border.color: desktopWindow.themeBorder
+                        border.width: 1
+
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 2
+                            Text { text: modelData.time; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 8; font.weight: Font.Bold; color: desktopWindow.themeMuted; Layout.alignment: Qt.AlignHCenter }
+                            Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13; color: desktopWindow.themeAccent; Layout.alignment: Qt.AlignHCenter }
+                            Text { text: modelData.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: desktopWindow.themeFg; Layout.alignment: Qt.AlignHCenter }
+                            Text { text: "󰖗 " + modelData.pop; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 7; color: (modelData.pop !== "0%") ? "#38bdf8" : "#64748b"; Layout.alignment: Qt.AlignHCenter }
+                        }
+                    }
                 }
             }
         }

@@ -199,6 +199,8 @@ state = {
     "weather_icon": "󰖙",
     "weather_desc": "Despejado",
     "weather_forecast": [],
+    "weather_hourly": [],
+    "weather_pressure": "1013 hPa",
     "volume": 75,
     "volume_icon": "󰕾",
     "volume_muted": False,
@@ -271,16 +273,18 @@ def update_weather():
     last_weather_fetch = now
     try:
         import urllib.request
-        url = "https://api.open-meteo.com/v1/forecast?latitude=40.4168&longitude=-3.7038&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto"
+        url = "https://api.open-meteo.com/v1/forecast?latitude=40.4168&longitude=-3.7038&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_hours=24"
         req = urllib.request.Request(url, headers={'User-Agent': 'Serpanplasma/1.0'})
-        with urllib.request.urlopen(req, timeout=3.5) as resp:
+        with urllib.request.urlopen(req, timeout=4.5) as resp:
             data = json.loads(resp.read().decode())
             cur = data.get("current", {})
             daily = data.get("daily", {})
+            hourly = data.get("hourly", {})
             temp = cur.get("temperature_2m")
             feels = cur.get("apparent_temperature", temp)
             hum = cur.get("relative_humidity_2m", 50)
             wind = cur.get("wind_speed_10m", 0)
+            pressure = round(cur.get("surface_pressure", 1013))
             code = cur.get("weather_code", 0)
 
             code_map = {
@@ -322,15 +326,37 @@ def update_weather():
                     "min": f"{round(min_list[idx])}°"
                 })
 
+            # Build 12-hour hourly forecast
+            hourly_list = []
+            h_times = hourly.get("time", [])
+            h_temps = hourly.get("temperature_2m", [])
+            h_codes = hourly.get("weather_code", [])
+            h_pops = hourly.get("precipitation_probability", [])
+            for i in range(min(12, len(h_times))):
+                raw_t = h_times[i]
+                hh = raw_t.split("T")[-1] if "T" in raw_t else raw_t
+                h_code = h_codes[i] if i < len(h_codes) else 0
+                h_icon, _ = code_map.get(h_code, ("☁", ""))
+                h_temp = f"{round(h_temps[i])}°" if i < len(h_temps) else ""
+                h_pop = f"{h_pops[i]}%" if i < len(h_pops) else "0%"
+                hourly_list.append({
+                    "time": hh,
+                    "temp": h_temp,
+                    "icon": h_icon,
+                    "pop": h_pop
+                })
+
             with lock:
                 if temp is not None:
                     state["temp"] = f"{temp:.1f}°C"
                     state["weather_feels_like"] = f"{feels:.1f}°C"
                     state["weather_humidity"] = hum
                     state["weather_wind"] = f"{wind:.1f} km/h"
+                    state["weather_pressure"] = f"{pressure} hPa"
                     state["weather_icon"] = icon
                     state["weather_desc"] = desc
                     state["weather_forecast"] = forecast
+                    state["weather_hourly"] = hourly_list
     except Exception:
         pass
 

@@ -27,9 +27,11 @@ PlasmoidItem {
         property string weatherFeelsLike: "21.0°C"
         property int weatherHumidity: 55
         property string weatherWind: "4.0 km/h"
+        property string weatherPressure: "1013 hPa"
         property string weatherIcon: "󰖙"
         property string weatherDesc: "Despejado"
         property var weatherForecast: []
+        property var weatherHourly: []
         property int selectedForecastIdx: 0
         property string batteryStr: "100%"
         property int batteryPct: 100
@@ -119,9 +121,11 @@ PlasmoidItem {
                         if (data.weather_feels_like !== undefined) barContainer.weatherFeelsLike = data.weather_feels_like;
                         if (data.weather_humidity !== undefined) barContainer.weatherHumidity = data.weather_humidity;
                         if (data.weather_wind !== undefined) barContainer.weatherWind = data.weather_wind;
+                        if (data.weather_pressure !== undefined) barContainer.weatherPressure = data.weather_pressure;
                         if (data.weather_icon !== undefined) barContainer.weatherIcon = data.weather_icon;
                         if (data.weather_desc !== undefined) barContainer.weatherDesc = data.weather_desc;
                         if (data.weather_forecast !== undefined) barContainer.weatherForecast = data.weather_forecast;
+                        if (data.weather_hourly !== undefined) barContainer.weatherHourly = data.weather_hourly;
                         if (data.battery !== undefined) barContainer.batteryPct = data.battery;
                         if (data.battery_str !== undefined) barContainer.batteryStr = data.battery_str;
                         if (data.battery_charging !== undefined) barContainer.batteryCharging = data.battery_charging;
@@ -171,6 +175,13 @@ PlasmoidItem {
             onTriggered: barContainer.fetchStatus()
         }
 
+        Timer {
+            id: fetchDebounceTimer
+            interval: 80
+            repeat: false
+            onTriggered: barContainer.fetchStatus()
+        }
+
         function sendCmd(action, val, mod) {
             var url = "http://127.0.0.1:19842/cmd?action=" + action;
             if (val !== undefined && val !== "") {
@@ -182,7 +193,7 @@ PlasmoidItem {
             var xhr = new XMLHttpRequest();
             xhr.open("GET", url);
             xhr.send();
-            setTimeout(fetchStatus, 80);
+            fetchDebounceTimer.restart();
         }
 
         function setThemeDirect(scheme) {
@@ -806,7 +817,7 @@ PlasmoidItem {
         // ==================== DROPDOWN POPUP DIALOGS (WAYLAND NATIVE) ============
         // =========================================================================
 
-        // 1. WEATHER DROPDOWN DIALOG (INTERACTIVE & SIZED PERFECTLY)
+        // 1. WEATHER DROPDOWN DIALOG (NOW WITH FULL HOURLY FORECAST & RICH STATS)
         PlasmaCore.Dialog {
             id: weatherDialog
             visualParent: weatherPill
@@ -815,10 +826,10 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 340
-                implicitWidth: 340
-                height: 350
-                implicitHeight: 350
+                width: 380
+                height: 480
+                implicitWidth: 380
+                implicitHeight: 480
                 color: barContainer.themeBg
                 radius: 14
                 border.color: barContainer.themeAccent
@@ -827,13 +838,14 @@ PlasmoidItem {
                 ColumnLayout {
                     id: weatherCol
                     anchors.fill: parent
-                    anchors.margins: 14
+                    anchors.margins: 16
                     spacing: 10
 
+                    // Top Bar Header
                     RowLayout {
                         Layout.fillWidth: true
                         Text {
-                            text: "☁ El Tiempo • Madrid"
+                            text: "☁ El Tiempo • Madrid, ES"
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 12
                             font.weight: Font.Bold
@@ -853,15 +865,15 @@ PlasmoidItem {
                         }
                     }
 
-                    // Main Weather Info (Dynamically reflects selected forecast day or current)
+                    // Main Weather Display
                     RowLayout {
-                        spacing: 14
+                        spacing: 16
                         Text {
                             text: (barContainer.selectedForecastIdx > 0 && barContainer.weatherForecast.length > barContainer.selectedForecastIdx)
                                   ? barContainer.weatherForecast[barContainer.selectedForecastIdx].icon
                                   : barContainer.weatherIcon
                             font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 34
+                            font.pixelSize: 36
                             color: barContainer.themeAccent
                         }
                         ColumnLayout {
@@ -871,14 +883,14 @@ PlasmoidItem {
                                       ? (barContainer.weatherForecast[barContainer.selectedForecastIdx].max + " / " + barContainer.weatherForecast[barContainer.selectedForecastIdx].min)
                                       : barContainer.temp
                                 font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 22
+                                font.pixelSize: 24
                                 font.weight: Font.Black
                                 color: barContainer.themeFg
                             }
                             Text {
                                 text: (barContainer.selectedForecastIdx > 0 && barContainer.weatherForecast.length > barContainer.selectedForecastIdx)
                                       ? ("Pronóstico: " + barContainer.weatherForecast[barContainer.selectedForecastIdx].day)
-                                      : barContainer.weatherDesc
+                                      : (barContainer.weatherDesc + " • Sensación " + barContainer.weatherFeelsLike)
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 11
                                 color: barContainer.themeMuted
@@ -886,37 +898,88 @@ PlasmoidItem {
                         }
                     }
 
-                    Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
-
-                    // Weather details row
+                    // Weather details badges row
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text { text: "Sensación"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted }
-                            Text { text: barContainer.weatherFeelsLike; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: barContainer.themeFg }
+                        spacing: 6
+                        Rectangle {
+                            Layout.fillWidth: true; height: 32; radius: 6; color: barContainer.themeCard; border.color: barContainer.themeBorder; border.width: 1
+                            RowLayout {
+                                anchors.centerIn: parent; spacing: 4
+                                Text { text: "󰈤"; font.pixelSize: 11; color: barContainer.themeAccent }
+                                Text { text: barContainer.weatherHumidity + "% Hum"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: barContainer.themeFg }
+                            }
                         }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text { text: "Humedad"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted }
-                            Text { text: barContainer.weatherHumidity + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: barContainer.themeFg }
+                        Rectangle {
+                            Layout.fillWidth: true; height: 32; radius: 6; color: barContainer.themeCard; border.color: barContainer.themeBorder; border.width: 1
+                            RowLayout {
+                                anchors.centerIn: parent; spacing: 4
+                                Text { text: "󰖝"; font.pixelSize: 11; color: barContainer.themeAccent }
+                                Text { text: barContainer.weatherWind; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: barContainer.themeFg }
+                            }
                         }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text { text: "Viento"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted }
-                            Text { text: barContainer.weatherWind; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: barContainer.themeFg }
+                        Rectangle {
+                            Layout.fillWidth: true; height: 32; radius: 6; color: barContainer.themeCard; border.color: barContainer.themeBorder; border.width: 1
+                            RowLayout {
+                                anchors.centerIn: parent; spacing: 4
+                                Text { text: "󰖐"; font.pixelSize: 11; color: barContainer.themeAccent }
+                                Text { text: barContainer.weatherPressure; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: barContainer.themeFg }
+                            }
                         }
                     }
 
                     Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
 
-                    Text { text: "Pronóstico Próximos Días (Haz clic en un día)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
+                    // SECTION 1: HOURLY FORECAST (PRONÓSTICO POR HORAS)
+                    Text { text: "󰥔 Pronóstico por Horas (Próximas 12h)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
 
-                    // Forecast cards with active clickable buttons!
+                    ScrollView {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 84
+                        clip: true
+                        ScrollBar.vertical.policy: ScrollBar.AlwaysOff
+                        ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+
+                        RowLayout {
+                            spacing: 6
+
+                            Repeater {
+                                model: barContainer.weatherHourly
+                                delegate: Rectangle {
+                                    width: 60
+                                    height: 80
+                                    radius: 8
+                                    color: hourMouse.containsMouse ? barContainer.themeBorder : barContainer.themeCard
+                                    border.color: hourMouse.containsMouse ? barContainer.themeAccent : barContainer.themeBorder
+                                    border.width: 1
+                                    scale: hourMouse.pressed ? 0.95 : 1.0
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    ColumnLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 2
+                                        Text { text: modelData.time; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted; Layout.alignment: Qt.AlignHCenter }
+                                        Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 15; color: barContainer.themeAccent; Layout.alignment: Qt.AlignHCenter }
+                                        Text { text: modelData.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeFg; Layout.alignment: Qt.AlignHCenter }
+                                        Text { text: "󰖗 " + modelData.pop; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 8; color: (modelData.pop !== "0%") ? "#38bdf8" : "#64748b"; Layout.alignment: Qt.AlignHCenter }
+                                    }
+
+                                    MouseArea {
+                                        id: hourMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
+
+                    // SECTION 2: DAILY FORECAST (PRONÓSTICO A 4 DÍAS)
+                    Text { text: "󰸗 Pronóstico a 4 Días"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
@@ -985,9 +1048,10 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 320
-                implicitWidth: 320
-                implicitHeight: calCol.implicitHeight + 28
+                width: 340
+                height: 350
+                implicitWidth: 340
+                implicitHeight: 350
                 color: barContainer.themeBg
                 radius: 14
                 border.color: barContainer.themeAccent
@@ -1092,7 +1156,7 @@ PlasmoidItem {
                     Item {
                         id: calGridContainer
                         Layout.fillWidth: true
-                        height: 200
+                        height: 180
 
                         ParallelAnimation {
                             id: calAnim
@@ -1110,7 +1174,7 @@ PlasmoidItem {
                                 model: 42
                                 delegate: Rectangle {
                                     Layout.fillWidth: true
-                                    height: 28
+                                    height: 26
                                     radius: 7
 
                                     readonly property int firstDayWeekday: {
@@ -1150,7 +1214,7 @@ PlasmoidItem {
             }
         }
 
-        // 3. BATTERY & POWER PROFILES DROPDOWN DIALOG (NO CLIPPING & EXPANDED)
+        // 3. BATTERY & POWER PROFILES DROPDOWN DIALOG (GUARANTEED FIXED DIMENSIONS NO CLIPPING)
         PlasmaCore.Dialog {
             id: batteryDialog
             visualParent: batPill
@@ -1159,9 +1223,10 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 340
-                implicitWidth: 340
-                implicitHeight: batCol.implicitHeight + 32
+                width: 350
+                height: 275
+                implicitWidth: 350
+                implicitHeight: 275
                 color: barContainer.themeBg
                 radius: 14
                 border.color: barContainer.themeAccent
@@ -1216,7 +1281,7 @@ PlasmoidItem {
                         // Performance
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 36
+                            height: 34
                             radius: 8
                             color: (barContainer.powerProfile === "performance") ? barContainer.themeAccent : barContainer.themeCard
                             border.color: (barContainer.powerProfile === "performance") ? barContainer.themeAccent : barContainer.themeBorder
@@ -1240,7 +1305,7 @@ PlasmoidItem {
                         // Balanced
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 36
+                            height: 34
                             radius: 8
                             color: (barContainer.powerProfile === "balanced") ? barContainer.themeAccent : barContainer.themeCard
                             border.color: (barContainer.powerProfile === "balanced") ? barContainer.themeAccent : barContainer.themeBorder
@@ -1264,7 +1329,7 @@ PlasmoidItem {
                         // Power saver
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 36
+                            height: 34
                             radius: 8
                             color: (barContainer.powerProfile === "power-saver") ? barContainer.themeAccent : barContainer.themeCard
                             border.color: (barContainer.powerProfile === "power-saver") ? barContainer.themeAccent : barContainer.themeBorder
@@ -1298,9 +1363,10 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 320
-                implicitWidth: 320
-                implicitHeight: netCol.implicitHeight + 28
+                width: 340
+                height: 255
+                implicitWidth: 340
+                implicitHeight: 255
                 color: barContainer.themeBg
                 radius: 14
                 border.color: barContainer.themeAccent
@@ -1389,7 +1455,7 @@ PlasmoidItem {
             }
         }
 
-        // 5. VOLUME DROPDOWN DIALOG (AUDIO DEVICE SWITCHER)
+        // 5. VOLUME DROPDOWN DIALOG (SCROLLABLE OUTPUT DEVICE SWITCHER - NO CLIPPING)
         PlasmaCore.Dialog {
             id: volumeDialog
             visualParent: volBtn
@@ -1398,9 +1464,10 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 330
-                implicitWidth: 330
-                implicitHeight: volCol.implicitHeight + 28
+                width: 350
+                height: 380
+                implicitWidth: 350
+                implicitHeight: 380
                 color: barContainer.themeBg
                 radius: 14
                 border.color: barContainer.themeAccent
@@ -1418,7 +1485,7 @@ PlasmoidItem {
                         Text { text: "Control de Audio"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: barContainer.themeFg }
                         Item { Layout.fillWidth: true }
                         Rectangle {
-                            width: 60; height: 22; radius: 5
+                            width: 65; height: 22; radius: 5
                             color: barContainer.volumeMuted ? "#ef4444" : barContainer.themeCard
                             border.color: barContainer.volumeMuted ? "#ef4444" : barContainer.themeBorder
                             border.width: 1
@@ -1475,60 +1542,68 @@ PlasmoidItem {
 
                     Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
 
-                    // Output Devices Header & List
+                    // Output Devices Header & Smooth Scrollable List
                     Text { text: "Dispositivo de Salida (Output Device)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
 
-                    ColumnLayout {
+                    ScrollView {
                         Layout.fillWidth: true
-                        spacing: 5
+                        Layout.preferredHeight: 140
+                        clip: true
+                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                        ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
-                        Repeater {
-                            model: barContainer.audioDevices
-                            delegate: Rectangle {
-                                Layout.fillWidth: true
-                                height: 32
-                                radius: 7
-                                color: modelData.active ? (barContainer.isLightTheme ? "#e0f2fe" : "#1e293b") : barContainer.themeCard
-                                border.color: modelData.active ? barContainer.themeAccent : barContainer.themeBorder
-                                border.width: modelData.active ? 1.5 : 1
+                        ColumnLayout {
+                            width: parent.width
+                            spacing: 5
 
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.leftMargin: 10
-                                    anchors.rightMargin: 10
-                                    spacing: 8
+                            Repeater {
+                                model: barContainer.audioDevices
+                                delegate: Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 32
+                                    radius: 7
+                                    color: modelData.active ? (barContainer.isLightTheme ? "#e0f2fe" : "#1e293b") : barContainer.themeCard
+                                    border.color: modelData.active ? barContainer.themeAccent : barContainer.themeBorder
+                                    border.width: modelData.active ? 1.5 : 1
 
-                                    Text {
-                                        text: modelData.icon
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 14
-                                        color: modelData.active ? barContainer.themeAccent : barContainer.themeMuted
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        spacing: 8
+
+                                        Text {
+                                            text: modelData.icon
+                                            font.family: "JetBrainsMono Nerd Font"
+                                            font.pixelSize: 14
+                                            color: modelData.active ? barContainer.themeAccent : barContainer.themeMuted
+                                        }
+
+                                        Text {
+                                            text: modelData.desc
+                                            font.family: "JetBrainsMono Nerd Font"
+                                            font.pixelSize: 10
+                                            font.weight: modelData.active ? Font.Bold : Font.Normal
+                                            color: modelData.active ? barContainer.themeAccent : barContainer.themeFg
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Text {
+                                            visible: modelData.active
+                                            text: "󰄵"
+                                            font.family: "JetBrainsMono Nerd Font"
+                                            font.pixelSize: 12
+                                            color: barContainer.themeAccent
+                                        }
                                     }
 
-                                    Text {
-                                        text: modelData.desc
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        font.weight: modelData.active ? Font.Bold : Font.Normal
-                                        color: modelData.active ? barContainer.themeAccent : barContainer.themeFg
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                    }
-
-                                    Text {
-                                        visible: modelData.active
-                                        text: "󰄵"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 12
-                                        color: barContainer.themeAccent
-                                    }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        barContainer.sendCmd("set_audio_device", modelData.name);
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            barContainer.sendCmd("set_audio_device", modelData.name);
+                                        }
                                     }
                                 }
                             }
@@ -1547,9 +1622,10 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 320
-                implicitWidth: 320
-                implicitHeight: themeCol.implicitHeight + 28
+                width: 340
+                height: 340
+                implicitWidth: 340
+                implicitHeight: 340
                 color: barContainer.themeBg
                 radius: 14
                 border.color: barContainer.themeAccent
@@ -1737,9 +1813,10 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 250
-                implicitWidth: 250
-                implicitHeight: pwrCol.implicitHeight + 28
+                width: 260
+                height: 265
+                implicitWidth: 260
+                implicitHeight: 265
                 color: barContainer.themeBg
                 radius: 14
                 border.color: "#ef4444"
