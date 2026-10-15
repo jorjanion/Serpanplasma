@@ -179,6 +179,7 @@ state = {
     "media_artist": "",
     "media_playing": False,
     "media_status": "Stopped",
+    "active_popup": "",
     "battery": 100,
     "battery_str": "100%",
     "battery_charging": False,
@@ -651,27 +652,88 @@ def update_lang():
         if not state.get("lang"):
             state["lang"] = "ES"
 
+def ensure_kwin_widget_rules():
+    """Ensure KWin rules exist to hide Serpanplasma desktop widgets from taskbar and pager"""
+    try:
+        home = os.path.expanduser("~")
+        kwinrules_path = os.path.join(home, ".config/kwinrulesrc")
+        rule_content = """[General]
+rules=SerpanplasmaWidgets
+
+[SerpanplasmaWidgets]
+description=Hide Serpanplasma Widgets from Taskbar
+wmclass=qml6
+wmclasscomplete=false
+wmclassmatch=1
+title=Serpanplasma
+titlematch=2
+skiptaskbar=true
+skiptaskbarrule=2
+skippager=true
+skippagerrule=2
+below=true
+belowrule=2
+"""
+        existing = ""
+        if os.path.exists(kwinrules_path):
+            with open(kwinrules_path, "r") as f:
+                existing = f.read()
+        if "SerpanplasmaWidgets" not in existing:
+            with open(kwinrules_path, "w") as f:
+                f.write(existing.strip() + "\n\n" + rule_content)
+            subprocess.run(["qdbus6", "org.kde.KWin", "/KWin", "reconfigure"], timeout=2.0)
+    except Exception:
+        pass
+
+def hide_widgets_from_taskbar():
+    """Apply skip_taskbar and skip_pager to Serpanplasma widget windows"""
+    try:
+        widgets = [
+            "Serpanplasma Hardware Widget",
+            "Serpanplasma Clock Widget",
+            "Serpanplasma Weather Widget",
+            "Serpanplasma Music Widget"
+        ]
+        for w in widgets:
+            subprocess.run(["wmctrl", "-r", w, "-b", "add,skip_taskbar,skip_pager"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+    except Exception:
+        pass
+
+def spawn_desktop_widgets():
+    """Start desktop widgets with environment and ensure hidden from taskbar"""
+    home = os.path.expanduser("~")
+    w_path = os.path.join(home, ".local/share/serpanplasma/widgets/DesktopWidgets.qml")
+    if not os.path.exists(w_path):
+        return
+    ensure_kwin_widget_rules()
+    w_env = os.environ.copy()
+    w_env["QT_QPA_PLATFORM"] = "xcb"
+    subprocess.Popen(["qml6", w_path], env=w_env)
+    def _delayed_hide():
+        for delay in [0.2, 0.4, 0.8, 1.5, 3.0]:
+            time.sleep(delay)
+            hide_widgets_from_taskbar()
+    threading.Thread(target=_delayed_hide, daemon=True).start()
+
 def background_poller():
     ensure_virtual_desktops()
+    ensure_kwin_widget_rules()
     try:
         subprocess.run(["kwriteconfig6", "--file", "kxkbrc", "--group", "Layout", "--key", "LayoutList", "es,us", "--notify"], timeout=1.0)
     except Exception:
         pass
-
-    home = os.path.expanduser("~")
-    w_path = os.path.join(home, ".local/share/serpanplasma/widgets/DesktopWidgets.qml")
-    w_env = os.environ.copy()
-    w_env["QT_QPA_PLATFORM"] = "xcb"
 
     loop_count = 0
     while True:
         try:
             loop_count += 1
             if loop_count % 6 == 0:
-                if settings.get("desktop_widgets", False) and os.path.exists(w_path):
+                if settings.get("desktop_widgets", False):
                     check = subprocess.run(["pgrep", "-f", "[D]esktopWidgets.qml"], stdout=subprocess.PIPE, text=True)
                     if not check.stdout.strip():
-                        subprocess.Popen(["qml6", w_path], env=w_env)
+                        spawn_desktop_widgets()
+            if loop_count % 4 == 0 and settings.get("desktop_widgets", False):
+                hide_widgets_from_taskbar()
             update_weather()
             update_media()
             update_battery()
@@ -1088,17 +1150,13 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
             elif action == "reset_widget_pos":
                 save_setting("widgets", dict(DEFAULT_SETTINGS["widgets"]))
-                w_path = os.path.join(home, ".local/share/serpanplasma/widgets/DesktopWidgets.qml")
                 subprocess.run(["pkill", "-f", "[D]esktopWidgets.qml"])
                 time.sleep(0.2)
-                if settings.get("desktop_widgets", False) and os.path.exists(w_path):
-                    w_env = os.environ.copy()
-                    w_env["QT_QPA_PLATFORM"] = "xcb"
-                    subprocess.Popen(["qml6", w_path], env=w_env)
+                if settings.get("desktop_widgets", False):
+                    spawn_desktop_widgets()
 
             # --- DESKTOP WIDGETS RUNNER ---
             elif action == "toggle_desktop_widgets":
-                w_path = os.path.join(home, ".local/share/serpanplasma/widgets/DesktopWidgets.qml")
                 check = subprocess.run(["pgrep", "-f", "[D]esktopWidgets.qml"], stdout=subprocess.PIPE, text=True)
                 is_running = bool(check.stdout.strip())
                 should_run = (not is_running) if not val else (val.lower() == "true")
@@ -1109,9 +1167,7 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                     if is_running:
                         subprocess.run(["pkill", "-f", "[D]esktopWidgets.qml"])
                         time.sleep(0.2)
-                    w_env = os.environ.copy()
-                    w_env["QT_QPA_PLATFORM"] = "xcb"
-                    subprocess.Popen(["qml6", w_path], env=w_env)
+                    spawn_desktop_widgets()
                     save_setting("desktop_widgets", True)
 
             elif action == "restart_kwin":
@@ -1125,6 +1181,10 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
             elif action == "open_url" and val:
                 subprocess.Popen(["xdg-open", val])
+
+            elif action == "set_popup":
+                with lock:
+                    state["active_popup"] = val
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

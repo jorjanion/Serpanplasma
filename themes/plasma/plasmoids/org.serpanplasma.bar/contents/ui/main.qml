@@ -107,6 +107,31 @@ PlasmoidItem {
             onTriggered: barContainer.updateDateTime()
         }
 
+        property var lastDialogClosedTimes: ({})
+
+        function toggleDialog(dialog, dialogName) {
+            var now = Date.now();
+            var lastClosed = lastDialogClosedTimes[dialogName] || 0;
+            if (now - lastClosed < 350) {
+                return;
+            }
+            if (!dialog.visible) {
+                closeAllDialogsExcept(dialog);
+                dialog.visible = true;
+            } else {
+                dialog.visible = false;
+            }
+        }
+
+        function closeAllDialogsExcept(exceptDialog) {
+            var dialogs = [weatherDialog, calendarDialog, batteryDialog, networkDialog, volumeDialog, themeDialog, powerDialog];
+            for (var i = 0; i < dialogs.length; i++) {
+                if (dialogs[i] && dialogs[i] !== exceptDialog && dialogs[i].visible) {
+                    dialogs[i].visible = false;
+                }
+            }
+        }
+
         function fetchStatus() {
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "http://127.0.0.1:19842/status");
@@ -164,6 +189,24 @@ PlasmoidItem {
                         if (data.theme_muted !== undefined) barContainer.themeMuted = data.theme_muted;
                         if (data.theme_border !== undefined) barContainer.themeBorder = data.theme_border;
                         if (data.is_light !== undefined) barContainer.isLightTheme = data.is_light;
+                        if (data.active_popup !== undefined && data.active_popup !== "") {
+                            if (data.active_popup === "power") powerDialog.visible = true;
+                            else if (data.active_popup === "battery") batteryDialog.visible = true;
+                            else if (data.active_popup === "weather") weatherDialog.visible = true;
+                            else if (data.active_popup === "calendar") calendarDialog.visible = true;
+                            else if (data.active_popup === "network") networkDialog.visible = true;
+                            else if (data.active_popup === "volume") volumeDialog.visible = true;
+                            else if (data.active_popup === "theme") themeDialog.visible = true;
+                            else if (data.active_popup === "none" || data.active_popup === "close") {
+                                powerDialog.visible = false;
+                                batteryDialog.visible = false;
+                                weatherDialog.visible = false;
+                                calendarDialog.visible = false;
+                                networkDialog.visible = false;
+                                volumeDialog.visible = false;
+                                themeDialog.visible = false;
+                            }
+                        }
                     } catch (e) {}
                 }
             };
@@ -469,7 +512,7 @@ PlasmoidItem {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        calendarDialog.visible = !calendarDialog.visible;
+                        barContainer.toggleDialog(calendarDialog, "calendar");
                     }
                 }
             }
@@ -519,7 +562,7 @@ PlasmoidItem {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        calendarDialog.visible = !calendarDialog.visible;
+                        barContainer.toggleDialog(calendarDialog, "calendar");
                     }
                 }
             }
@@ -569,7 +612,7 @@ PlasmoidItem {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        weatherDialog.visible = !weatherDialog.visible;
+                        barContainer.toggleDialog(weatherDialog, "weather");
                     }
                 }
             }
@@ -608,7 +651,7 @@ PlasmoidItem {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            themeDialog.visible = !themeDialog.visible;
+                            barContainer.toggleDialog(themeDialog, "theme");
                         }
                     }
                 }
@@ -641,7 +684,7 @@ PlasmoidItem {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            volumeDialog.visible = !volumeDialog.visible;
+                            barContainer.toggleDialog(volumeDialog, "volume");
                         }
                         onWheel: function(wheel) {
                             if (wheel.angleDelta.y > 0) {
@@ -729,7 +772,7 @@ PlasmoidItem {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            networkDialog.visible = !networkDialog.visible;
+                            barContainer.toggleDialog(networkDialog, "network");
                         }
                     }
                 }
@@ -776,7 +819,7 @@ PlasmoidItem {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            batteryDialog.visible = !batteryDialog.visible;
+                            barContainer.toggleDialog(batteryDialog, "battery");
                         }
                     }
                 }
@@ -809,9 +852,37 @@ PlasmoidItem {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: powerDialog.visible = !powerDialog.visible
+                        onClicked: barContainer.toggleDialog(powerDialog, "power")
                     }
                 }
+            }
+
+            // Alignment anchors for popups near the screen edge so they never get cut off
+            Item {
+                id: powerAnchor
+                anchors.right: parent.right
+                anchors.rightMargin: 136
+                anchors.verticalCenter: parent.verticalCenter
+                width: 2
+                height: 2
+            }
+
+            Item {
+                id: batAnchor
+                anchors.right: parent.right
+                anchors.rightMargin: 185
+                anchors.verticalCenter: parent.verticalCenter
+                width: 2
+                height: 2
+            }
+
+            Item {
+                id: netAnchor
+                anchors.right: parent.right
+                anchors.rightMargin: 180
+                anchors.verticalCenter: parent.verticalCenter
+                width: 2
+                height: 2
             }
         }
 
@@ -825,9 +896,11 @@ PlasmoidItem {
             visualParent: weatherPill
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
-            flags: Qt.Popup | Qt.FramelessWindowHint
             hideOnWindowDeactivate: true
             visible: false
+            onVisibleChanged: {
+                if (!visible) barContainer.lastDialogClosedTimes["weather"] = Date.now();
+            }
 
             mainItem: Rectangle {
                 width: 390
@@ -943,49 +1016,45 @@ PlasmoidItem {
                         color: barContainer.themeMuted
                     }
 
-                    ScrollView {
+                    ListView {
+                        id: hourlyView
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 104
+                        Layout.preferredHeight: 90
+                        orientation: ListView.Horizontal
+                        spacing: 8
                         clip: true
-                        ScrollBar.vertical.policy: ScrollBar.AlwaysOff
+                        boundsBehavior: Flickable.StopAtBounds
                         ScrollBar.horizontal: ScrollBar {
-                            policy: ScrollBar.AsNeeded
-                            implicitHeight: 6
+                            policy: ScrollBar.AlwaysOff
                         }
 
-                        RowLayout {
-                            spacing: 6
+                        model: (barContainer.weatherHourlyByDay && barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)])
+                               ? barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)]
+                               : barContainer.weatherHourly
+                        delegate: Rectangle {
+                            width: 62
+                            height: 86
+                            radius: 8
+                            color: hourMouse.containsMouse ? barContainer.themeBorder : barContainer.themeCard
+                            border.color: hourMouse.containsMouse ? barContainer.themeAccent : barContainer.themeBorder
+                            border.width: 1
+                            scale: hourMouse.pressed ? 0.95 : 1.0
+                            Behavior on color { ColorAnimation { duration: 150 } }
 
-                            Repeater {
-                                model: (barContainer.weatherHourlyByDay && barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)])
-                                       ? barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)]
-                                       : barContainer.weatherHourly
-                                delegate: Rectangle {
-                                    width: 62
-                                    height: 86
-                                    radius: 8
-                                    color: hourMouse.containsMouse ? barContainer.themeBorder : barContainer.themeCard
-                                    border.color: hourMouse.containsMouse ? barContainer.themeAccent : barContainer.themeBorder
-                                    border.width: 1
-                                    scale: hourMouse.pressed ? 0.95 : 1.0
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 3
+                                Text { text: modelData.time; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted; Layout.alignment: Qt.AlignHCenter }
+                                Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 16; color: barContainer.themeAccent; Layout.alignment: Qt.AlignHCenter }
+                                Text { text: modelData.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeFg; Layout.alignment: Qt.AlignHCenter }
+                                Text { text: "󰖗 " + modelData.pop; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 8; color: (modelData.pop !== "0%") ? "#38bdf8" : "#64748b"; Layout.alignment: Qt.AlignHCenter }
+                            }
 
-                                    ColumnLayout {
-                                        anchors.centerIn: parent
-                                        spacing: 3
-                                        Text { text: modelData.time; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted; Layout.alignment: Qt.AlignHCenter }
-                                        Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 16; color: barContainer.themeAccent; Layout.alignment: Qt.AlignHCenter }
-                                        Text { text: modelData.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeFg; Layout.alignment: Qt.AlignHCenter }
-                                        Text { text: "󰖗 " + modelData.pop; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 8; color: (modelData.pop !== "0%") ? "#38bdf8" : "#64748b"; Layout.alignment: Qt.AlignHCenter }
-                                    }
-
-                                    MouseArea {
-                                        id: hourMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                    }
-                                }
+                            MouseArea {
+                                id: hourMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
                             }
                         }
                     }
@@ -1060,9 +1129,11 @@ PlasmoidItem {
             visualParent: timePill
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
-            flags: Qt.Popup | Qt.FramelessWindowHint
             hideOnWindowDeactivate: true
             visible: false
+            onVisibleChanged: {
+                if (!visible) barContainer.lastDialogClosedTimes["calendar"] = Date.now();
+            }
 
             mainItem: Rectangle {
                 width: 340
@@ -1234,12 +1305,14 @@ PlasmoidItem {
         // 3. BATTERY & POWER PROFILES DROPDOWN DIALOG (GUARANTEED FIXED DIMENSIONS NO CLIPPING)
         PlasmaCore.Dialog {
             id: batteryDialog
-            visualParent: batPill
+            visualParent: batAnchor
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
-            flags: Qt.Popup | Qt.FramelessWindowHint
             hideOnWindowDeactivate: true
             visible: false
+            onVisibleChanged: {
+                if (!visible) barContainer.lastDialogClosedTimes["battery"] = Date.now();
+            }
 
             mainItem: Rectangle {
                 width: 350
@@ -1376,12 +1449,14 @@ PlasmoidItem {
         // 4. NETWORK DROPDOWN DIALOG (PUBLIC IP + RX/TX SPEEDS)
         PlasmaCore.Dialog {
             id: networkDialog
-            visualParent: netPill
+            visualParent: netAnchor
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
-            flags: Qt.Popup | Qt.FramelessWindowHint
             hideOnWindowDeactivate: true
             visible: false
+            onVisibleChanged: {
+                if (!visible) barContainer.lastDialogClosedTimes["network"] = Date.now();
+            }
 
             mainItem: Rectangle {
                 width: 340
@@ -1482,9 +1557,11 @@ PlasmoidItem {
             visualParent: volBtn
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
-            flags: Qt.Popup | Qt.FramelessWindowHint
             hideOnWindowDeactivate: true
             visible: false
+            onVisibleChanged: {
+                if (!visible) barContainer.lastDialogClosedTimes["volume"] = Date.now();
+            }
 
             mainItem: Rectangle {
                 width: 350
@@ -1642,9 +1719,11 @@ PlasmoidItem {
             visualParent: themeBtn
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
-            flags: Qt.Popup | Qt.FramelessWindowHint
             hideOnWindowDeactivate: true
             visible: false
+            onVisibleChanged: {
+                if (!visible) barContainer.lastDialogClosedTimes["theme"] = Date.now();
+            }
 
             mainItem: Rectangle {
                 width: 340
@@ -1832,12 +1911,14 @@ PlasmoidItem {
         // 7. POWER MENU DROPDOWN DIALOG (SHUTDOWN, REBOOT, LOGOUT, LOCK, SUSPEND)
         PlasmaCore.Dialog {
             id: powerDialog
-            visualParent: powerBtn
+            visualParent: powerAnchor
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
-            flags: Qt.Popup | Qt.FramelessWindowHint
             hideOnWindowDeactivate: true
             visible: false
+            onVisibleChanged: {
+                if (!visible) barContainer.lastDialogClosedTimes["power"] = Date.now();
+            }
 
             mainItem: Rectangle {
                 width: 260
