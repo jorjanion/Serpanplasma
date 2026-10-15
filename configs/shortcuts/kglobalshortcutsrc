@@ -1,0 +1,9 @@
+[kwin]
+Window Close=Alt+F4,Alt+F4,Cerrar la ventana
+Walk Through Windows=Alt+Tab\tMeta+Tab,Alt+Tab\tMeta+Tab,Recorrer las ventanas
+Walk Through Windows (Reverse)=Alt+Shift+Tab\tMeta+Shift+Tab,Alt+Shift+Tab\tMeta+Shift+Tab,Recorrer las ventanas (hacia atrás)
+Window Maximize=Meta+Up,Meta+Up,Maximizar la ventana
+Window Minimize=Meta+Down,Meta+Down,Minimizar la ventana
+
+[services][org.kde.dolphin.desktop]
+_launch=Meta+E,Meta+E,Dolphin

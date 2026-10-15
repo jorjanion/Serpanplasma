@@ -1,0 +1,15 @@
+[Common]
+OutlineCloseButton=false
+ShadowColor=0,0,0
+ShadowSize=ShadowMedium
+ShadowStrength=35
+
+[Windeco]
+ButtonIconStyle=ButtonIconSystem
+DrawBackgroundGradient=false
+DrawBorderOnMaximizedWindows=false
+DrawTitleBarSeparator=false
+HideTitleBar=false
+TitleAlignment=AlignCenter
+TitleBarHeight=34
+WindowCornerRadius=12

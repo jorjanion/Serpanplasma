@@ -1,0 +1,51 @@
+<svg width="30" height="30" version="1.1" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <style id="current-color-scheme" type="text/css">.ColorScheme-Text {
+        color:#1e293b;
+        stop-color:#1e293b;
+      }
+      .ColorScheme-Background {
+        color:#f8fafc;
+        stop-color:#f8fafc;
+      }
+      .ColorScheme-Highlight {
+        color:#38bdf8;
+        stop-color:#38bdf8;
+      }
+      .ColorScheme-ViewText {
+        color:#1e293b;
+        stop-color:#1e293b;
+      }
+      .ColorScheme-ViewBackground {
+        color:#f8fafc;
+        stop-color:#f8fafc;
+      }
+      .ColorScheme-ViewHover {
+        color:#7dd3fc;
+        stop-color:#7dd3fc;
+      }
+      .ColorScheme-ViewFocus{
+        color:#38bdf8;
+        stop-color:#38bdf8;
+      }
+      .ColorScheme-ButtonText {
+        color:#1e293b;
+        stop-color:#1e293b;
+      }
+      .ColorScheme-ButtonBackground {
+        color:#f8fafc;
+        stop-color:#f8fafc;
+      }
+      .ColorScheme-ButtonHover {
+        color:#7dd3fc;
+        stop-color:#7dd3fc;
+      }
+      .ColorScheme-ButtonFocus{
+        color:#38bdf8;
+        stop-color:#38bdf8;
+      }</style>
+ </defs>
+ <g transform="translate(0 -904.36)">
+  <path id="event" class="ColorScheme-Highlight" d="m30 918.36-16 16h16z" fill="#4285f4"/>
+ </g>
+</svg>

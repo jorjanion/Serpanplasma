@@ -1,0 +1,23 @@
+# OS and Editor files
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.bak
+*.tmp
+
+# Sensitive information and secrets
+*.env
+*.env.*
+*.token
+*.key
+*.pem
+*.credentials
+id_rsa
+id_ed25519
+secrets/
+
+# Build and temporary files
+/tmp/
+/build/
+.cache/

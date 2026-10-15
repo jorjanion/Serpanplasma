@@ -1,0 +1,22 @@
+{
+    "KPackageStructure": "Plasma/Theme",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Serpanplasma Team",
+                "Email": "jorge@titoonion.duckdns.org"
+            }
+        ],
+        "Category": "Plasma Theme",
+        "Description": "Serpantinum aesthetic ported to KDE Plasma 6 (Obsidian dark slate translucent floating theme)",
+        "Id": "Serpanplasma",
+        "License": "GPL-3.0-or-later",
+        "Name": "Serpanplasma",
+        "ServiceTypes": [
+            "Plasma/Theme"
+        ],
+        "Version": "1.0",
+        "Website": "https://github.com/jorjanion/Serpanplasma"
+    },
+    "X-Plasma-API": "6.0"
+}
