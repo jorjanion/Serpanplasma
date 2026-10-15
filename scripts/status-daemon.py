@@ -303,11 +303,11 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             # --- System Controls ---
             if action == "settings":
                 qml_path = os.path.join(home, ".local/share/serpanplasma/guide/SettingsWindow.qml")
-                check = subprocess.run(["pgrep", "-f", "SettingsWindow.qml"], stdout=subprocess.PIPE, text=True)
+                check = subprocess.run(["pgrep", "-f", "[S]ettingsWindow.qml"], stdout=subprocess.PIPE, text=True)
                 if check.stdout.strip():
-                    subprocess.run(["pkill", "-f", "SettingsWindow.qml"])
+                    subprocess.run(["pkill", "-f", "[S]ettingsWindow.qml"])
                 else:
-                    subprocess.Popen(["qml6", qml_path])
+                    subprocess.Popen(["qml6", qml_path], env=os.environ.copy())
 
             elif action == "play-pause":
                 subprocess.Popen(["playerctl", "play-pause"])
