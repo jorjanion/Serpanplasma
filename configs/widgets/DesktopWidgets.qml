@@ -2,16 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Window {
-    id: desktopWindow
-    visible: true
-    x: 0
-    y: 0
-    width: Screen.width
-    height: Screen.height
-    color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
-    title: "Serpanplasma Desktop Widgets"
+Item {
+    id: root
 
     // Master enabled state
     property bool desktopWidgetsEnabled: true
@@ -64,6 +56,12 @@ Window {
     property string currentTime: "22:00"
     property string currentDate: "jueves, 15 de octubre"
 
+    // Drag tracking to prevent fetchMetrics from overriding active movement
+    property bool hwMoving: false
+    property bool clockMoving: false
+    property bool weatherMoving: false
+    property bool musicMoving: false
+
     function sendCmd(action, val, mod) {
         var url = "http://127.0.0.1:19842/cmd?action=" + action;
         if (val !== undefined && val !== "") {
@@ -91,7 +89,7 @@ Window {
         interval: 1000
         running: true
         repeat: true
-        onTriggered: desktopWindow.updateTime()
+        onTriggered: root.updateTime()
     }
 
     function fetchMetrics() {
@@ -101,57 +99,81 @@ Window {
             if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
                 try {
                     var d = JSON.parse(xhr.responseText);
-                    if (d.desktop_widgets !== undefined) desktopWindow.desktopWidgetsEnabled = d.desktop_widgets;
+                    if (d.desktop_widgets !== undefined) root.desktopWidgetsEnabled = d.desktop_widgets;
 
                     if (d.widgets !== undefined) {
                         if (d.widgets.hw !== undefined) {
-                            if (d.widgets.hw.enabled !== undefined) desktopWindow.wgtHwEnabled = d.widgets.hw.enabled;
-                            if (d.widgets.hw.x !== undefined && !hwMouseArea.drag.active) desktopWindow.wgtHwX = d.widgets.hw.x;
-                            if (d.widgets.hw.y !== undefined && !hwMouseArea.drag.active) desktopWindow.wgtHwY = d.widgets.hw.y;
+                            if (d.widgets.hw.enabled !== undefined) root.wgtHwEnabled = d.widgets.hw.enabled;
+                            if (d.widgets.hw.x !== undefined && !root.hwMoving) {
+                                root.wgtHwX = d.widgets.hw.x;
+                                if (hwWin.x !== d.widgets.hw.x) hwWin.x = d.widgets.hw.x;
+                            }
+                            if (d.widgets.hw.y !== undefined && !root.hwMoving) {
+                                root.wgtHwY = d.widgets.hw.y;
+                                if (hwWin.y !== d.widgets.hw.y) hwWin.y = d.widgets.hw.y;
+                            }
                         }
                         if (d.widgets.clock !== undefined) {
-                            if (d.widgets.clock.enabled !== undefined) desktopWindow.wgtClockEnabled = d.widgets.clock.enabled;
-                            if (d.widgets.clock.x !== undefined && !clockMouseArea.drag.active) desktopWindow.wgtClockX = d.widgets.clock.x;
-                            if (d.widgets.clock.y !== undefined && !clockMouseArea.drag.active) desktopWindow.wgtClockY = d.widgets.clock.y;
+                            if (d.widgets.clock.enabled !== undefined) root.wgtClockEnabled = d.widgets.clock.enabled;
+                            if (d.widgets.clock.x !== undefined && !root.clockMoving) {
+                                root.wgtClockX = d.widgets.clock.x;
+                                if (clockWin.x !== d.widgets.clock.x) clockWin.x = d.widgets.clock.x;
+                            }
+                            if (d.widgets.clock.y !== undefined && !root.clockMoving) {
+                                root.wgtClockY = d.widgets.clock.y;
+                                if (clockWin.y !== d.widgets.clock.y) clockWin.y = d.widgets.clock.y;
+                            }
                         }
                         if (d.widgets.weather !== undefined) {
-                            if (d.widgets.weather.enabled !== undefined) desktopWindow.wgtWeatherEnabled = d.widgets.weather.enabled;
-                            if (d.widgets.weather.x !== undefined && !weatherMouseArea.drag.active) desktopWindow.wgtWeatherX = d.widgets.weather.x;
-                            if (d.widgets.weather.y !== undefined && !weatherMouseArea.drag.active) desktopWindow.wgtWeatherY = d.widgets.weather.y;
+                            if (d.widgets.weather.enabled !== undefined) root.wgtWeatherEnabled = d.widgets.weather.enabled;
+                            if (d.widgets.weather.x !== undefined && !root.weatherMoving) {
+                                root.wgtWeatherX = d.widgets.weather.x;
+                                if (weatherWin.x !== d.widgets.weather.x) weatherWin.x = d.widgets.weather.x;
+                            }
+                            if (d.widgets.weather.y !== undefined && !root.weatherMoving) {
+                                root.wgtWeatherY = d.widgets.weather.y;
+                                if (weatherWin.y !== d.widgets.weather.y) weatherWin.y = d.widgets.weather.y;
+                            }
                         }
                         if (d.widgets.music !== undefined) {
-                            if (d.widgets.music.enabled !== undefined) desktopWindow.wgtMusicEnabled = d.widgets.music.enabled;
-                            if (d.widgets.music.x !== undefined && !musicMouseArea.drag.active) desktopWindow.wgtMusicX = d.widgets.music.x;
-                            if (d.widgets.music.y !== undefined && !musicMouseArea.drag.active) desktopWindow.wgtMusicY = d.widgets.music.y;
+                            if (d.widgets.music.enabled !== undefined) root.wgtMusicEnabled = d.widgets.music.enabled;
+                            if (d.widgets.music.x !== undefined && !root.musicMoving) {
+                                root.wgtMusicX = d.widgets.music.x;
+                                if (musicWin.x !== d.widgets.music.x) musicWin.x = d.widgets.music.x;
+                            }
+                            if (d.widgets.music.y !== undefined && !root.musicMoving) {
+                                root.wgtMusicY = d.widgets.music.y;
+                                if (musicWin.y !== d.widgets.music.y) musicWin.y = d.widgets.music.y;
+                            }
                         }
                     }
 
-                    if (d.cpu_pct !== undefined) desktopWindow.cpuPct = d.cpu_pct;
-                    if (d.ram_pct !== undefined) desktopWindow.ramPct = d.ram_pct;
-                    if (d.ram_used_gb !== undefined) desktopWindow.ramUsed = String(d.ram_used_gb);
-                    if (d.ram_total_gb !== undefined) desktopWindow.ramTotal = String(d.ram_total_gb);
-                    if (d.disk_pct !== undefined) desktopWindow.diskPct = d.disk_pct;
-                    if (d.disk_free_gb !== undefined) desktopWindow.diskFree = String(d.disk_free_gb);
-                    if (d.uptime !== undefined) desktopWindow.uptimeStr = d.uptime;
-                    if (d.temp !== undefined) desktopWindow.temp = d.temp;
-                    if (d.weather_feels_like !== undefined) desktopWindow.weatherFeels = d.weather_feels_like;
-                    if (d.weather_humidity !== undefined) desktopWindow.weatherHum = d.weather_humidity;
-                    if (d.weather_wind !== undefined) desktopWindow.weatherWind = d.weather_wind;
-                    if (d.weather_pressure !== undefined) desktopWindow.weatherPressure = d.weather_pressure;
-                    if (d.weather_icon !== undefined) desktopWindow.weatherIcon = d.weather_icon;
-                    if (d.weather_desc !== undefined) desktopWindow.weatherDesc = d.weather_desc;
-                    if (d.weather_hourly !== undefined) desktopWindow.weatherHourly = d.weather_hourly;
-                    if (d.media_title !== undefined) desktopWindow.mediaTitle = d.media_title;
-                    if (d.media_artist !== undefined) desktopWindow.mediaArtist = d.media_artist;
-                    if (d.media_playing !== undefined) desktopWindow.mediaPlaying = d.media_playing;
+                    if (d.cpu_pct !== undefined) root.cpuPct = d.cpu_pct;
+                    if (d.ram_pct !== undefined) root.ramPct = d.ram_pct;
+                    if (d.ram_used_gb !== undefined) root.ramUsed = String(d.ram_used_gb);
+                    if (d.ram_total_gb !== undefined) root.ramTotal = String(d.ram_total_gb);
+                    if (d.disk_pct !== undefined) root.diskPct = d.disk_pct;
+                    if (d.disk_free_gb !== undefined) root.diskFree = String(d.disk_free_gb);
+                    if (d.uptime !== undefined) root.uptimeStr = d.uptime;
+                    if (d.temp !== undefined) root.temp = d.temp;
+                    if (d.weather_feels_like !== undefined) root.weatherFeels = d.weather_feels_like;
+                    if (d.weather_humidity !== undefined) root.weatherHum = d.weather_humidity;
+                    if (d.weather_wind !== undefined) root.weatherWind = d.weather_wind;
+                    if (d.weather_pressure !== undefined) root.weatherPressure = d.weather_pressure;
+                    if (d.weather_icon !== undefined) root.weatherIcon = d.weather_icon;
+                    if (d.weather_desc !== undefined) root.weatherDesc = d.weather_desc;
+                    if (d.weather_hourly !== undefined) root.weatherHourly = d.weather_hourly;
+                    if (d.media_title !== undefined) root.mediaTitle = d.media_title;
+                    if (d.media_artist !== undefined) root.mediaArtist = d.media_artist;
+                    if (d.media_playing !== undefined) root.mediaPlaying = d.media_playing;
 
-                    if (d.theme_bg !== undefined) desktopWindow.themeBg = d.theme_bg;
-                    if (d.theme_card !== undefined) desktopWindow.themeCard = d.theme_card;
-                    if (d.theme_accent !== undefined) desktopWindow.themeAccent = d.theme_accent;
-                    if (d.theme_fg !== undefined) desktopWindow.themeFg = d.theme_fg;
-                    if (d.theme_muted !== undefined) desktopWindow.themeMuted = d.theme_muted;
-                    if (d.theme_border !== undefined) desktopWindow.themeBorder = d.theme_border;
-                    if (d.is_light !== undefined) desktopWindow.isLightTheme = d.is_light;
+                    if (d.theme_bg !== undefined) root.themeBg = d.theme_bg;
+                    if (d.theme_card !== undefined) root.themeCard = d.theme_card;
+                    if (d.theme_accent !== undefined) root.themeAccent = d.theme_accent;
+                    if (d.theme_fg !== undefined) root.themeFg = d.theme_fg;
+                    if (d.theme_muted !== undefined) root.themeMuted = d.theme_muted;
+                    if (d.theme_border !== undefined) root.themeBorder = d.theme_border;
+                    if (d.is_light !== undefined) root.isLightTheme = d.is_light;
                 } catch(e) {}
             }
         };
@@ -162,7 +184,7 @@ Window {
         interval: 800
         running: true
         repeat: true
-        onTriggered: desktopWindow.fetchMetrics()
+        onTriggered: root.fetchMetrics()
     }
 
     Component.onCompleted: {
@@ -171,304 +193,126 @@ Window {
     }
 
     // =========================================================================
-    // 1. HARDWARE USAGE WIDGET (DRAGGABLE & TOGGLEABLE)
+    // 1. HARDWARE USAGE WIDGET WINDOW (MODULAR, DRAGGABLE, STAYS ON DESKTOP)
     // =========================================================================
-    Rectangle {
-        id: hwWidget
-        visible: desktopWindow.desktopWidgetsEnabled && desktopWindow.wgtHwEnabled
-        x: desktopWindow.wgtHwX
-        y: desktopWindow.wgtHwY
+    Window {
+        id: hwWin
+        visible: root.desktopWidgetsEnabled && root.wgtHwEnabled
+        x: root.wgtHwX
+        y: root.wgtHwY
         width: 360
-        implicitHeight: usageCol.implicitHeight + 32
-        radius: 16
-        color: desktopWindow.themeBg
-        opacity: 0.94
-        border.color: desktopWindow.themeBorder
-        border.width: 1
+        height: 200
+        color: "transparent"
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
+        title: "Serpanplasma Hardware Widget"
 
-        MouseArea {
-            id: hwMouseArea
-            anchors.fill: parent
-            cursorShape: Qt.OpenHandCursor
-            drag.target: parent
-            drag.axis: Drag.XAndYAxis
-            drag.minimumX: 10
-            drag.maximumX: desktopWindow.width - parent.width - 10
-            drag.minimumY: 45
-            drag.maximumY: desktopWindow.height - parent.height - 10
-            onPressed: cursorShape = Qt.ClosedHandCursor
-            onReleased: {
-                cursorShape = Qt.OpenHandCursor;
-                desktopWindow.wgtHwX = Math.round(parent.x);
-                desktopWindow.wgtHwY = Math.round(parent.y);
-                desktopWindow.sendCmd("set_widget_pos", Math.round(parent.x) + "," + Math.round(parent.y), "hw");
+        Timer {
+            id: hwSaveTimer
+            interval: 350
+            repeat: false
+            onTriggered: {
+                root.hwMoving = false;
+                root.wgtHwX = Math.round(hwWin.x);
+                root.wgtHwY = Math.round(hwWin.y);
+                root.sendCmd("set_widget_pos", Math.round(hwWin.x) + "," + Math.round(hwWin.y), "hw");
             }
         }
 
-        ColumnLayout {
-            id: usageCol
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+        onXChanged: {
+            root.hwMoving = true;
+            hwSaveTimer.restart();
+        }
+        onYChanged: {
+            root.hwMoving = true;
+            hwSaveTimer.restart();
+        }
 
-            RowLayout {
-                spacing: 8
-                Text { text: "󰍛"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 16; color: desktopWindow.themeAccent }
-                Text { text: "Monitor del Sistema"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: desktopWindow.themeFg }
-                Item { Layout.fillWidth: true }
-                Text { text: "󰅐 " + desktopWindow.uptimeStr; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: desktopWindow.themeMuted }
+        Rectangle {
+            anchors.fill: parent
+            radius: 16
+            color: root.themeBg
+            opacity: 0.94
+            border.color: root.themeBorder
+            border.width: 1
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                onPressed: hwWin.startSystemMove()
             }
 
-            // CPU
             ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 10
+
                 RowLayout {
-                    Layout.fillWidth: true
-                    Text { text: "󰻠 CPU (AMD Ryzen)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: desktopWindow.themeMuted }
+                    spacing: 8
+                    Text { text: "󰍛"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 15; color: root.themeAccent }
+                    Text { text: "Monitor del Sistema"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: root.themeFg }
                     Item { Layout.fillWidth: true }
-                    Text { text: desktopWindow.cpuPct + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: desktopWindow.themeAccent }
-                }
-                Rectangle {
-                    Layout.fillWidth: true; height: 6; radius: 3; color: desktopWindow.themeCard
-                    Rectangle {
-                        width: Math.max(4, parent.width * (desktopWindow.cpuPct / 100.0))
-                        height: parent.height; radius: 3
-                        color: (desktopWindow.cpuPct > 80) ? "#ef4444" : desktopWindow.themeAccent
-                        Behavior on width { NumberAnimation { duration: 250 } }
-                    }
-                }
-            }
-
-            // RAM
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text { text: "󰘚 RAM (" + desktopWindow.ramUsed + " / " + desktopWindow.ramTotal + " GB)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: desktopWindow.themeMuted }
-                    Item { Layout.fillWidth: true }
-                    Text { text: desktopWindow.ramPct + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: desktopWindow.themeAccent }
-                }
-                Rectangle {
-                    Layout.fillWidth: true; height: 6; radius: 3; color: desktopWindow.themeCard
-                    Rectangle {
-                        width: Math.max(4, parent.width * (desktopWindow.ramPct / 100.0))
-                        height: parent.height; radius: 3
-                        color: (desktopWindow.ramPct > 85) ? "#ef4444" : desktopWindow.themeAccent
-                        Behavior on width { NumberAnimation { duration: 250 } }
-                    }
-                }
-            }
-
-            // Disk
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text { text: "󰋊 Almacenamiento (Libre: " + desktopWindow.diskFree + " GB)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: desktopWindow.themeMuted }
-                    Item { Layout.fillWidth: true }
-                    Text { text: desktopWindow.diskPct + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: desktopWindow.themeAccent }
-                }
-                Rectangle {
-                    Layout.fillWidth: true; height: 6; radius: 3; color: desktopWindow.themeCard
-                    Rectangle {
-                        width: Math.max(4, parent.width * (desktopWindow.diskPct / 100.0))
-                        height: parent.height; radius: 3
-                        color: desktopWindow.themeAccent
-                        Behavior on width { NumberAnimation { duration: 250 } }
-                    }
-                }
-            }
-        }
-    }
-
-    // =========================================================================
-    // 2. CLOCK & DATE DESKTOP WIDGET (DRAGGABLE & TOGGLEABLE)
-    // =========================================================================
-    Rectangle {
-        id: clockWidget
-        visible: desktopWindow.desktopWidgetsEnabled && desktopWindow.wgtClockEnabled
-        x: desktopWindow.wgtClockX
-        y: desktopWindow.wgtClockY
-        width: 360
-        height: 125
-        radius: 16
-        color: desktopWindow.themeBg
-        opacity: 0.94
-        border.color: desktopWindow.themeBorder
-        border.width: 1
-
-        MouseArea {
-            id: clockMouseArea
-            anchors.fill: parent
-            cursorShape: Qt.OpenHandCursor
-            drag.target: parent
-            drag.axis: Drag.XAndYAxis
-            drag.minimumX: 10
-            drag.maximumX: desktopWindow.width - parent.width - 10
-            drag.minimumY: 45
-            drag.maximumY: desktopWindow.height - parent.height - 10
-            onPressed: cursorShape = Qt.ClosedHandCursor
-            onReleased: {
-                cursorShape = Qt.OpenHandCursor;
-                desktopWindow.wgtClockX = Math.round(parent.x);
-                desktopWindow.wgtClockY = Math.round(parent.y);
-                desktopWindow.sendCmd("set_widget_pos", Math.round(parent.x) + "," + Math.round(parent.y), "clock");
-            }
-        }
-
-        ColumnLayout {
-            anchors.centerIn: parent
-            spacing: 2
-            Text {
-                text: desktopWindow.currentTime
-                font.family: "JetBrainsMono Nerd Font"
-                font.pixelSize: 42
-                font.weight: Font.Black
-                color: desktopWindow.themeFg
-                Layout.alignment: Qt.AlignHCenter
-            }
-            Text {
-                text: desktopWindow.currentDate
-                font.family: "JetBrainsMono Nerd Font"
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-                color: desktopWindow.themeAccent
-                Layout.alignment: Qt.AlignHCenter
-            }
-        }
-    }
-
-    // =========================================================================
-    // 3. WEATHER DESKTOP WIDGET (WITH HOURLY FORECAST & RICH METRICS)
-    // =========================================================================
-    Rectangle {
-        id: weatherWidget
-        visible: desktopWindow.desktopWidgetsEnabled && desktopWindow.wgtWeatherEnabled
-        x: desktopWindow.wgtWeatherX
-        y: desktopWindow.wgtWeatherY
-        width: 380
-        height: 220
-        radius: 16
-        color: desktopWindow.themeBg
-        opacity: 0.94
-        border.color: desktopWindow.themeBorder
-        border.width: 1
-
-        MouseArea {
-            id: weatherMouseArea
-            anchors.fill: parent
-            cursorShape: Qt.OpenHandCursor
-            drag.target: parent
-            drag.axis: Drag.XAndYAxis
-            drag.minimumX: 10
-            drag.maximumX: desktopWindow.width - parent.width - 10
-            drag.minimumY: 45
-            drag.maximumY: desktopWindow.height - parent.height - 10
-            onPressed: cursorShape = Qt.ClosedHandCursor
-            onReleased: {
-                cursorShape = Qt.OpenHandCursor;
-                desktopWindow.wgtWeatherX = Math.round(parent.x);
-                desktopWindow.wgtWeatherY = Math.round(parent.y);
-                desktopWindow.sendCmd("set_widget_pos", Math.round(parent.x) + "," + Math.round(parent.y), "weather");
-            }
-        }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 14
-            spacing: 10
-
-            // Top Info Row
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-
-                Rectangle {
-                    width: 44
-                    height: 44
-                    radius: 10
-                    color: desktopWindow.themeCard
-                    border.color: desktopWindow.themeAccent
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: desktopWindow.weatherIcon
-                        font.family: "JetBrainsMono Nerd Font"
-                        font.pixelSize: 24
-                        color: desktopWindow.themeAccent
-                    }
+                    Text { text: "󰅐 " + root.uptimeStr; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: root.themeMuted }
                 }
 
+                // CPU
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 1
+                    spacing: 3
                     RowLayout {
-                        Text { text: desktopWindow.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 20; font.weight: Font.Black; color: desktopWindow.themeFg }
-                        Item { Layout.fillWidth: true }
-                        Text { text: "Madrid, ES"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: desktopWindow.themeAccent }
-                    }
-                    Text { text: desktopWindow.weatherDesc + " • Sensación " + desktopWindow.weatherFeels; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: desktopWindow.themeMuted }
-                }
-            }
-
-            // Metrics Badges
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 6
-                Rectangle {
-                    Layout.fillWidth: true; height: 26; radius: 6; color: desktopWindow.themeCard; border.color: desktopWindow.themeBorder; border.width: 1
-                    RowLayout {
-                        anchors.centerIn: parent; spacing: 4
-                        Text { text: "󰈤"; font.pixelSize: 10; color: desktopWindow.themeAccent }
-                        Text { text: desktopWindow.weatherHum + "% Hum"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: desktopWindow.themeFg }
-                    }
-                }
-                Rectangle {
-                    Layout.fillWidth: true; height: 26; radius: 6; color: desktopWindow.themeCard; border.color: desktopWindow.themeBorder; border.width: 1
-                    RowLayout {
-                        anchors.centerIn: parent; spacing: 4
-                        Text { text: "󰖝"; font.pixelSize: 10; color: desktopWindow.themeAccent }
-                        Text { text: desktopWindow.weatherWind; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: desktopWindow.themeFg }
-                    }
-                }
-                Rectangle {
-                    Layout.fillWidth: true; height: 26; radius: 6; color: desktopWindow.themeCard; border.color: desktopWindow.themeBorder; border.width: 1
-                    RowLayout {
-                        anchors.centerIn: parent; spacing: 4
-                        Text { text: "󰖐"; font.pixelSize: 10; color: desktopWindow.themeAccent }
-                        Text { text: desktopWindow.weatherPressure; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: desktopWindow.themeFg }
-                    }
-                }
-            }
-
-            Rectangle { Layout.fillWidth: true; height: 1; color: desktopWindow.themeBorder }
-
-            // Hourly Forecast Pills Row
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 6
-
-                Repeater {
-                    model: desktopWindow.weatherHourly.slice(0, 5)
-                    delegate: Rectangle {
                         Layout.fillWidth: true
-                        height: 62
-                        radius: 7
-                        color: desktopWindow.themeCard
-                        border.color: desktopWindow.themeBorder
-                        border.width: 1
+                        Text { text: "󰻠 CPU (AMD Ryzen)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: root.themeMuted }
+                        Item { Layout.fillWidth: true }
+                        Text { text: root.cpuPct + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: root.themeAccent }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; height: 5; radius: 3; color: root.themeCard
+                        Rectangle {
+                            width: Math.max(4, parent.width * (root.cpuPct / 100.0))
+                            height: parent.height; radius: 3
+                            color: (root.cpuPct > 80) ? "#ef4444" : root.themeAccent
+                            Behavior on width { NumberAnimation { duration: 250 } }
+                        }
+                    }
+                }
 
-                        ColumnLayout {
-                            anchors.centerIn: parent
-                            spacing: 2
-                            Text { text: modelData.time; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 8; font.weight: Font.Bold; color: desktopWindow.themeMuted; Layout.alignment: Qt.AlignHCenter }
-                            Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13; color: desktopWindow.themeAccent; Layout.alignment: Qt.AlignHCenter }
-                            Text { text: modelData.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: desktopWindow.themeFg; Layout.alignment: Qt.AlignHCenter }
-                            Text { text: "󰖗 " + modelData.pop; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 7; color: (modelData.pop !== "0%") ? "#38bdf8" : "#64748b"; Layout.alignment: Qt.AlignHCenter }
+                // RAM
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "󰘚 RAM (" + root.ramUsed + " / " + root.ramTotal + " GB)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: root.themeMuted }
+                        Item { Layout.fillWidth: true }
+                        Text { text: root.ramPct + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: root.themeAccent }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; height: 5; radius: 3; color: root.themeCard
+                        Rectangle {
+                            width: Math.max(4, parent.width * (root.ramPct / 100.0))
+                            height: parent.height; radius: 3
+                            color: (root.ramPct > 85) ? "#ef4444" : root.themeAccent
+                            Behavior on width { NumberAnimation { duration: 250 } }
+                        }
+                    }
+                }
+
+                // Disk
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "󰋊 Almacenamiento (Libre: " + root.diskFree + " GB)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: root.themeMuted }
+                        Item { Layout.fillWidth: true }
+                        Text { text: root.diskPct + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: root.themeAccent }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; height: 5; radius: 3; color: root.themeCard
+                        Rectangle {
+                            width: Math.max(4, parent.width * (root.diskPct / 100.0))
+                            height: parent.height; radius: 3
+                            color: root.themeAccent
+                            Behavior on width { NumberAnimation { duration: 250 } }
                         }
                     }
                 }
@@ -477,109 +321,346 @@ Window {
     }
 
     // =========================================================================
-    // 4. MUSIC NOW-PLAYING WIDGET (DRAGGABLE & TOGGLEABLE)
+    // 2. CLOCK & DATE WIDGET WINDOW (MODULAR, DRAGGABLE, STAYS ON DESKTOP)
     // =========================================================================
-    Rectangle {
-        id: musicWidget
-        visible: desktopWindow.desktopWidgetsEnabled && desktopWindow.wgtMusicEnabled
-        x: desktopWindow.wgtMusicX
-        y: desktopWindow.wgtMusicY
+    Window {
+        id: clockWin
+        visible: root.desktopWidgetsEnabled && root.wgtClockEnabled
+        x: root.wgtClockX
+        y: root.wgtClockY
         width: 360
-        height: 88
-        radius: 16
-        color: desktopWindow.themeBg
-        opacity: 0.94
-        border.color: desktopWindow.themeBorder
-        border.width: 1
+        height: 125
+        color: "transparent"
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
+        title: "Serpanplasma Clock Widget"
 
-        MouseArea {
-            id: musicMouseArea
-            anchors.fill: parent
-            cursorShape: Qt.OpenHandCursor
-            drag.target: parent
-            drag.axis: Drag.XAndYAxis
-            drag.minimumX: 10
-            drag.maximumX: desktopWindow.width - parent.width - 10
-            drag.minimumY: 45
-            drag.maximumY: desktopWindow.height - parent.height - 10
-            onPressed: cursorShape = Qt.ClosedHandCursor
-            onReleased: {
-                cursorShape = Qt.OpenHandCursor;
-                desktopWindow.wgtMusicX = Math.round(parent.x);
-                desktopWindow.wgtMusicY = Math.round(parent.y);
-                desktopWindow.sendCmd("set_widget_pos", Math.round(parent.x) + "," + Math.round(parent.y), "music");
+        Timer {
+            id: clockSaveTimer
+            interval: 350
+            repeat: false
+            onTriggered: {
+                root.clockMoving = false;
+                root.wgtClockX = Math.round(clockWin.x);
+                root.wgtClockY = Math.round(clockWin.y);
+                root.sendCmd("set_widget_pos", Math.round(clockWin.x) + "," + Math.round(clockWin.y), "clock");
             }
         }
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 14
-            spacing: 12
+        onXChanged: {
+            root.clockMoving = true;
+            clockSaveTimer.restart();
+        }
+        onYChanged: {
+            root.clockMoving = true;
+            clockSaveTimer.restart();
+        }
 
-            Rectangle {
-                width: 44
-                height: 44
-                radius: 10
-                color: desktopWindow.themeCard
-                border.color: desktopWindow.themeAccent
-                border.width: 1
-                Text {
-                    anchors.centerIn: parent
-                    text: "󰎈"
-                    font.family: "JetBrainsMono Nerd Font"
-                    font.pixelSize: 18
-                    color: desktopWindow.themeAccent
-                }
+        Rectangle {
+            anchors.fill: parent
+            radius: 16
+            color: root.themeBg
+            opacity: 0.94
+            border.color: root.themeBorder
+            border.width: 1
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                onPressed: clockWin.startSystemMove()
             }
 
             ColumnLayout {
-                Layout.fillWidth: true
+                anchors.centerIn: parent
                 spacing: 2
                 Text {
-                    text: desktopWindow.mediaTitle
+                    text: root.currentTime
                     font.family: "JetBrainsMono Nerd Font"
-                    font.pixelSize: 11
-                    font.weight: Font.Bold
-                    color: desktopWindow.themeFg
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
-                    Layout.fillWidth: true
+                    font.pixelSize: 42
+                    font.weight: Font.Black
+                    color: root.themeFg
+                    Layout.alignment: Qt.AlignHCenter
                 }
                 Text {
-                    text: desktopWindow.mediaArtist !== "" ? desktopWindow.mediaArtist : "Reproductor MPRIS"
+                    text: root.currentDate
                     font.family: "JetBrainsMono Nerd Font"
-                    font.pixelSize: 9
-                    color: desktopWindow.themeMuted
-                    elide: Text.ElideRight
-                    Layout.fillWidth: true
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                    color: root.themeAccent
+                    Layout.alignment: Qt.AlignHCenter
                 }
             }
+        }
+    }
 
-            // Controls with independent MouseAreas
+    // =========================================================================
+    // 3. WEATHER WIDGET WINDOW (WITH HOURLY BADGES & RICH METRICS)
+    // =========================================================================
+    Window {
+        id: weatherWin
+        visible: root.desktopWidgetsEnabled && root.wgtWeatherEnabled
+        x: root.wgtWeatherX
+        y: root.wgtWeatherY
+        width: 380
+        height: 220
+        color: "transparent"
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
+        title: "Serpanplasma Weather Widget"
+
+        Timer {
+            id: weatherSaveTimer
+            interval: 350
+            repeat: false
+            onTriggered: {
+                root.weatherMoving = false;
+                root.wgtWeatherX = Math.round(weatherWin.x);
+                root.wgtWeatherY = Math.round(weatherWin.y);
+                root.sendCmd("set_widget_pos", Math.round(weatherWin.x) + "," + Math.round(weatherWin.y), "weather");
+            }
+        }
+
+        onXChanged: {
+            root.weatherMoving = true;
+            weatherSaveTimer.restart();
+        }
+        onYChanged: {
+            root.weatherMoving = true;
+            weatherSaveTimer.restart();
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 16
+            color: root.themeBg
+            opacity: 0.94
+            border.color: root.themeBorder
+            border.width: 1
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                onPressed: weatherWin.startSystemMove()
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 10
+
+                // Top Info Row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Rectangle {
+                        width: 44
+                        height: 44
+                        radius: 10
+                        color: root.themeCard
+                        border.color: root.themeAccent
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.weatherIcon
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 24
+                            color: root.themeAccent
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+                        RowLayout {
+                            Text { text: root.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 20; font.weight: Font.Black; color: root.themeFg }
+                            Item { Layout.fillWidth: true }
+                            Text { text: "Madrid, ES"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: root.themeAccent }
+                        }
+                        Text { text: root.weatherDesc + " • Sensación " + root.weatherFeels; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: root.themeMuted }
+                    }
+                }
+
+                // Metrics Badges
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Rectangle {
+                        Layout.fillWidth: true; height: 26; radius: 6; color: root.themeCard; border.color: root.themeBorder; border.width: 1
+                        RowLayout {
+                            anchors.centerIn: parent; spacing: 4
+                            Text { text: "󰈤"; font.pixelSize: 10; color: root.themeAccent }
+                            Text { text: root.weatherHum + "% Hum"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: root.themeFg }
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; height: 26; radius: 6; color: root.themeCard; border.color: root.themeBorder; border.width: 1
+                        RowLayout {
+                            anchors.centerIn: parent; spacing: 4
+                            Text { text: "󰖝"; font.pixelSize: 10; color: root.themeAccent }
+                            Text { text: root.weatherWind; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: root.themeFg }
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; height: 26; radius: 6; color: root.themeCard; border.color: root.themeBorder; border.width: 1
+                        RowLayout {
+                            anchors.centerIn: parent; spacing: 4
+                            Text { text: "󰖐"; font.pixelSize: 10; color: root.themeAccent }
+                            Text { text: root.weatherPressure; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: root.themeFg }
+                        }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: root.themeBorder }
+
+                // Hourly Forecast Pills Row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Repeater {
+                        model: root.weatherHourly.slice(0, 5)
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            height: 62
+                            radius: 7
+                            color: root.themeCard
+                            border.color: root.themeBorder
+                            border.width: 1
+
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 2
+                                Text { text: modelData.time; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 8; font.weight: Font.Bold; color: root.themeMuted; Layout.alignment: Qt.AlignHCenter }
+                                Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13; color: root.themeAccent; Layout.alignment: Qt.AlignHCenter }
+                                Text { text: modelData.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: root.themeFg; Layout.alignment: Qt.AlignHCenter }
+                                Text { text: "󰖗 " + modelData.pop; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 7; color: (modelData.pop !== "0%") ? "#38bdf8" : "#64748b"; Layout.alignment: Qt.AlignHCenter }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 4. MUSIC NOW-PLAYING WIDGET WINDOW (MODULAR, DRAGGABLE, STAYS ON DESKTOP)
+    // =========================================================================
+    Window {
+        id: musicWin
+        visible: root.desktopWidgetsEnabled && root.wgtMusicEnabled
+        x: root.wgtMusicX
+        y: root.wgtMusicY
+        width: 360
+        height: 88
+        color: "transparent"
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
+        title: "Serpanplasma Music Widget"
+
+        Timer {
+            id: musicSaveTimer
+            interval: 350
+            repeat: false
+            onTriggered: {
+                root.musicMoving = false;
+                root.wgtMusicX = Math.round(musicWin.x);
+                root.wgtMusicY = Math.round(musicWin.y);
+                root.sendCmd("set_widget_pos", Math.round(musicWin.x) + "," + Math.round(musicWin.y), "music");
+            }
+        }
+
+        onXChanged: {
+            root.musicMoving = true;
+            musicSaveTimer.restart();
+        }
+        onYChanged: {
+            root.musicMoving = true;
+            musicSaveTimer.restart();
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 16
+            color: root.themeBg
+            opacity: 0.94
+            border.color: root.themeBorder
+            border.width: 1
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                onPressed: musicWin.startSystemMove()
+            }
+
             RowLayout {
-                spacing: 6
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
                 Rectangle {
-                    width: 28; height: 28; radius: 7; color: desktopWindow.themeCard; border.color: desktopWindow.themeBorder; border.width: 1
-                    Text { anchors.centerIn: parent; text: "󰒮"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: desktopWindow.themeFg }
-                    MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: desktopWindow.sendCmd("previous")
+                    width: 44
+                    height: 44
+                    radius: 10
+                    color: root.themeCard
+                    border.color: root.themeAccent
+                    border.width: 1
+                    Text {
+                        anchors.centerIn: parent
+                        text: "󰎈"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 18
+                        color: root.themeAccent
                     }
                 }
-                Rectangle {
-                    width: 32; height: 32; radius: 8; color: desktopWindow.themeAccent
-                    Text { anchors.centerIn: parent; text: desktopWindow.mediaPlaying ? "󰏤" : "󰐊"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; color: desktopWindow.isLightTheme ? "#ffffff" : "#0f172a" }
-                    MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: desktopWindow.sendCmd("play-pause")
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                        text: root.mediaTitle
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 11
+                        font.weight: Font.Bold
+                        color: root.themeFg
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
+                        Layout.fillWidth: true
+                    }
+                    Text {
+                        text: root.mediaArtist !== "" ? root.mediaArtist : "Reproductor MPRIS"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 9
+                        color: root.themeMuted
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
                     }
                 }
-                Rectangle {
-                    width: 28; height: 28; radius: 7; color: desktopWindow.themeCard; border.color: desktopWindow.themeBorder; border.width: 1
-                    Text { anchors.centerIn: parent; text: "󰒭"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: desktopWindow.themeFg }
-                    MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: desktopWindow.sendCmd("next")
+
+                // Controls with independent MouseAreas
+                RowLayout {
+                    spacing: 6
+                    Rectangle {
+                        width: 28; height: 28; radius: 7; color: root.themeCard; border.color: root.themeBorder; border.width: 1
+                        Text { anchors.centerIn: parent; text: "󰒮"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: root.themeFg }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: root.sendCmd("previous")
+                        }
+                    }
+                    Rectangle {
+                        width: 32; height: 32; radius: 8; color: root.themeAccent
+                        Text { anchors.centerIn: parent; text: root.mediaPlaying ? "󰏤" : "󰐊"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; color: root.isLightTheme ? "#ffffff" : "#0f172a" }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: root.sendCmd("play-pause")
+                        }
+                    }
+                    Rectangle {
+                        width: 28; height: 28; radius: 7; color: root.themeCard; border.color: root.themeBorder; border.width: 1
+                        Text { anchors.centerIn: parent; text: "󰒭"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: root.themeFg }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: root.sendCmd("next")
+                        }
                     }
                 }
             }

@@ -200,6 +200,7 @@ state = {
     "weather_desc": "Despejado",
     "weather_forecast": [],
     "weather_hourly": [],
+    "weather_hourly_by_day": {},
     "weather_pressure": "1013 hPa",
     "volume": 75,
     "volume_icon": "󰕾",
@@ -273,7 +274,7 @@ def update_weather():
     last_weather_fetch = now
     try:
         import urllib.request
-        url = "https://api.open-meteo.com/v1/forecast?latitude=40.4168&longitude=-3.7038&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_hours=24"
+        url = "https://api.open-meteo.com/v1/forecast?latitude=40.4168&longitude=-3.7038&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7"
         req = urllib.request.Request(url, headers={'User-Agent': 'Serpanplasma/1.0'})
         with urllib.request.urlopen(req, timeout=4.5) as resp:
             data = json.loads(resp.read().decode())
@@ -326,25 +327,31 @@ def update_weather():
                     "min": f"{round(min_list[idx])}°"
                 })
 
-            # Build 12-hour hourly forecast
-            hourly_list = []
+            # Build 24-hour hourly forecast grouped by day (indices 0, 1, 2, 3)
             h_times = hourly.get("time", [])
             h_temps = hourly.get("temperature_2m", [])
             h_codes = hourly.get("weather_code", [])
             h_pops = hourly.get("precipitation_probability", [])
-            for i in range(min(12, len(h_times))):
-                raw_t = h_times[i]
-                hh = raw_t.split("T")[-1] if "T" in raw_t else raw_t
-                h_code = h_codes[i] if i < len(h_codes) else 0
-                h_icon, _ = code_map.get(h_code, ("☁", ""))
-                h_temp = f"{round(h_temps[i])}°" if i < len(h_temps) else ""
-                h_pop = f"{h_pops[i]}%" if i < len(h_pops) else "0%"
-                hourly_list.append({
-                    "time": hh,
-                    "temp": h_temp,
-                    "icon": h_icon,
-                    "pop": h_pop
-                })
+
+            hourly_by_day = {}
+            for day_idx in range(4):
+                day_hours = []
+                start_h = day_idx * 24
+                end_h = start_h + 24
+                for i in range(start_h, min(end_h, len(h_times))):
+                    raw_t = h_times[i]
+                    hh = raw_t.split("T")[-1] if "T" in raw_t else raw_t
+                    h_code = h_codes[i] if i < len(h_codes) else 0
+                    h_icon, _ = code_map.get(h_code, ("☁", ""))
+                    h_temp = f"{round(h_temps[i])}°" if i < len(h_temps) else ""
+                    h_pop = f"{h_pops[i]}%" if i < len(h_pops) else "0%"
+                    day_hours.append({
+                        "time": hh,
+                        "temp": h_temp,
+                        "icon": h_icon,
+                        "pop": h_pop
+                    })
+                hourly_by_day[str(day_idx)] = day_hours
 
             with lock:
                 if temp is not None:
@@ -356,7 +363,8 @@ def update_weather():
                     state["weather_icon"] = icon
                     state["weather_desc"] = desc
                     state["weather_forecast"] = forecast
-                    state["weather_hourly"] = hourly_list
+                    state["weather_hourly"] = hourly_by_day.get("0", [])
+                    state["weather_hourly_by_day"] = hourly_by_day
     except Exception:
         pass
 
@@ -645,6 +653,10 @@ def update_lang():
 
 def background_poller():
     ensure_virtual_desktops()
+    try:
+        subprocess.run(["kwriteconfig6", "--file", "kxkbrc", "--group", "Layout", "--key", "LayoutList", "es,us", "--notify"], timeout=1.0)
+    except Exception:
+        pass
     while True:
         try:
             update_weather()
@@ -1022,15 +1034,17 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             elif action == "toggle_layout":
                 cur = state.get("lang", "ES")
                 nxt = "US" if cur == "ES" else "ES"
+                nxt_idx = "1" if cur == "ES" else "0"
                 with lock:
                     state["lang"] = nxt
                 save_setting("lang", nxt)
+                subprocess.run(["kwriteconfig6", "--file", "kxkbrc", "--group", "Layout", "--key", "LayoutList", "es,us", "--notify"], timeout=1.0)
+                subprocess.run(["qdbus6", "org.kde.keyboard", "/Layouts", "org.kde.KeyboardLayouts.setLayout", nxt_idx], timeout=1.0)
                 subprocess.Popen(["setxkbmap", "-layout", nxt.lower()])
-                subprocess.Popen(["qdbus6", "org.kde.keyboard", "/Layouts", "org.kde.KeyboardLayouts.switchToNextLayout"])
 
             # --- INDIVIDUAL DESKTOP WIDGETS ---
             elif action == "set_widget_enabled":
-                w_name = params.get("widget", ["hw"])[0]
+                w_name = mod if mod else params.get("widget", ["hw"])[0]
                 is_en = (val.lower() == "true")
                 widgets = settings.get("widgets", dict(DEFAULT_SETTINGS["widgets"]))
                 if w_name in widgets:
@@ -1040,10 +1054,15 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 save_setting("widgets", widgets)
 
             elif action == "set_widget_pos":
-                w_name = params.get("widget", ["hw"])[0]
+                w_name = mod if mod else params.get("widget", ["hw"])[0]
                 try:
-                    x_pos = int(params.get("x", [100])[0])
-                    y_pos = int(params.get("y", [100])[0])
+                    if val and "," in val:
+                        parts = val.split(",")
+                        x_pos = int(float(parts[0]))
+                        y_pos = int(float(parts[1]))
+                    else:
+                        x_pos = int(params.get("x", [100])[0])
+                        y_pos = int(params.get("y", [100])[0])
                     widgets = settings.get("widgets", dict(DEFAULT_SETTINGS["widgets"]))
                     if w_name in widgets:
                         widgets[w_name]["x"] = x_pos

@@ -32,6 +32,7 @@ PlasmoidItem {
         property string weatherDesc: "Despejado"
         property var weatherForecast: []
         property var weatherHourly: []
+        property var weatherHourlyByDay: ({})
         property int selectedForecastIdx: 0
         property string batteryStr: "100%"
         property int batteryPct: 100
@@ -126,6 +127,7 @@ PlasmoidItem {
                         if (data.weather_desc !== undefined) barContainer.weatherDesc = data.weather_desc;
                         if (data.weather_forecast !== undefined) barContainer.weatherForecast = data.weather_forecast;
                         if (data.weather_hourly !== undefined) barContainer.weatherHourly = data.weather_hourly;
+                        if (data.weather_hourly_by_day !== undefined) barContainer.weatherHourlyByDay = data.weather_hourly_by_day;
                         if (data.battery !== undefined) barContainer.batteryPct = data.battery;
                         if (data.battery_str !== undefined) barContainer.batteryStr = data.battery_str;
                         if (data.battery_charging !== undefined) barContainer.batteryCharging = data.battery_charging;
@@ -823,6 +825,8 @@ PlasmoidItem {
             visualParent: weatherPill
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
+            flags: Qt.Popup | Qt.FramelessWindowHint
+            hideOnWindowDeactivate: true
             visible: false
 
             mainItem: Rectangle {
@@ -930,8 +934,14 @@ PlasmoidItem {
 
                     Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
 
-                    // SECTION 1: HOURLY FORECAST (PRONÓSTICO POR HORAS)
-                    Text { text: "󰥔 Pronóstico por Horas (Próximas 12h)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
+                    // SECTION 1: HOURLY FORECAST (PRONÓSTICO POR HORAS DINÁMICO POR DÍA)
+                    Text {
+                        text: "󰥔 Pronóstico por Horas (" + ((barContainer.selectedForecastIdx === 0) ? "Hoy" : (barContainer.weatherForecast && barContainer.weatherForecast.length > barContainer.selectedForecastIdx ? barContainer.weatherForecast[barContainer.selectedForecastIdx].day : "Día " + barContainer.selectedForecastIdx)) + ")"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 10
+                        font.weight: Font.Bold
+                        color: barContainer.themeMuted
+                    }
 
                     ScrollView {
                         Layout.fillWidth: true
@@ -944,7 +954,9 @@ PlasmoidItem {
                             spacing: 6
 
                             Repeater {
-                                model: barContainer.weatherHourly
+                                model: (barContainer.weatherHourlyByDay && barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)])
+                                       ? barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)]
+                                       : barContainer.weatherHourly
                                 delegate: Rectangle {
                                     width: 60
                                     height: 80
@@ -1045,6 +1057,8 @@ PlasmoidItem {
             visualParent: timePill
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
+            flags: Qt.Popup | Qt.FramelessWindowHint
+            hideOnWindowDeactivate: true
             visible: false
 
             mainItem: Rectangle {
@@ -1220,6 +1234,8 @@ PlasmoidItem {
             visualParent: batPill
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
+            flags: Qt.Popup | Qt.FramelessWindowHint
+            hideOnWindowDeactivate: true
             visible: false
 
             mainItem: Rectangle {
@@ -1360,6 +1376,8 @@ PlasmoidItem {
             visualParent: netPill
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
+            flags: Qt.Popup | Qt.FramelessWindowHint
+            hideOnWindowDeactivate: true
             visible: false
 
             mainItem: Rectangle {
@@ -1461,6 +1479,8 @@ PlasmoidItem {
             visualParent: volBtn
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
+            flags: Qt.Popup | Qt.FramelessWindowHint
+            hideOnWindowDeactivate: true
             visible: false
 
             mainItem: Rectangle {
@@ -1619,6 +1639,8 @@ PlasmoidItem {
             visualParent: themeBtn
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
+            flags: Qt.Popup | Qt.FramelessWindowHint
+            hideOnWindowDeactivate: true
             visible: false
 
             mainItem: Rectangle {
@@ -1810,6 +1832,8 @@ PlasmoidItem {
             visualParent: powerBtn
             location: PlasmaCore.Types.TopEdge
             type: PlasmaCore.Dialog.PopupMenu
+            flags: Qt.Popup | Qt.FramelessWindowHint
+            hideOnWindowDeactivate: true
             visible: false
 
             mainItem: Rectangle {
