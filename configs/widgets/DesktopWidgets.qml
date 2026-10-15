@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Item {
+QtObject {
     id: root
 
     // Master enabled state
@@ -56,11 +56,7 @@ Item {
     property string currentTime: "22:00"
     property string currentDate: "jueves, 15 de octubre"
 
-    // Drag tracking to prevent fetchMetrics from overriding active movement
-    property bool hwMoving: false
-    property bool clockMoving: false
-    property bool weatherMoving: false
-    property bool musicMoving: false
+    property bool initialLoaded: false
 
     function sendCmd(action, val, mod) {
         var url = "http://127.0.0.1:19842/cmd?action=" + action;
@@ -85,7 +81,7 @@ Item {
         currentDate = days[now.getDay()] + ", " + now.getDate() + " de " + months[now.getMonth()];
     }
 
-    Timer {
+    property var timeTimer: Timer {
         interval: 1000
         running: true
         repeat: true
@@ -104,48 +100,33 @@ Item {
                     if (d.widgets !== undefined) {
                         if (d.widgets.hw !== undefined) {
                             if (d.widgets.hw.enabled !== undefined) root.wgtHwEnabled = d.widgets.hw.enabled;
-                            if (d.widgets.hw.x !== undefined && !root.hwMoving) {
-                                root.wgtHwX = d.widgets.hw.x;
-                                if (hwWin.x !== d.widgets.hw.x) hwWin.x = d.widgets.hw.x;
-                            }
-                            if (d.widgets.hw.y !== undefined && !root.hwMoving) {
-                                root.wgtHwY = d.widgets.hw.y;
-                                if (hwWin.y !== d.widgets.hw.y) hwWin.y = d.widgets.hw.y;
+                            if (!root.initialLoaded) {
+                                if (d.widgets.hw.x !== undefined) { root.wgtHwX = d.widgets.hw.x; hwWin.x = d.widgets.hw.x; }
+                                if (d.widgets.hw.y !== undefined) { root.wgtHwY = d.widgets.hw.y; hwWin.y = d.widgets.hw.y; }
                             }
                         }
                         if (d.widgets.clock !== undefined) {
                             if (d.widgets.clock.enabled !== undefined) root.wgtClockEnabled = d.widgets.clock.enabled;
-                            if (d.widgets.clock.x !== undefined && !root.clockMoving) {
-                                root.wgtClockX = d.widgets.clock.x;
-                                if (clockWin.x !== d.widgets.clock.x) clockWin.x = d.widgets.clock.x;
-                            }
-                            if (d.widgets.clock.y !== undefined && !root.clockMoving) {
-                                root.wgtClockY = d.widgets.clock.y;
-                                if (clockWin.y !== d.widgets.clock.y) clockWin.y = d.widgets.clock.y;
+                            if (!root.initialLoaded) {
+                                if (d.widgets.clock.x !== undefined) { root.wgtClockX = d.widgets.clock.x; clockWin.x = d.widgets.clock.x; }
+                                if (d.widgets.clock.y !== undefined) { root.wgtClockY = d.widgets.clock.y; clockWin.y = d.widgets.clock.y; }
                             }
                         }
                         if (d.widgets.weather !== undefined) {
                             if (d.widgets.weather.enabled !== undefined) root.wgtWeatherEnabled = d.widgets.weather.enabled;
-                            if (d.widgets.weather.x !== undefined && !root.weatherMoving) {
-                                root.wgtWeatherX = d.widgets.weather.x;
-                                if (weatherWin.x !== d.widgets.weather.x) weatherWin.x = d.widgets.weather.x;
-                            }
-                            if (d.widgets.weather.y !== undefined && !root.weatherMoving) {
-                                root.wgtWeatherY = d.widgets.weather.y;
-                                if (weatherWin.y !== d.widgets.weather.y) weatherWin.y = d.widgets.weather.y;
+                            if (!root.initialLoaded) {
+                                if (d.widgets.weather.x !== undefined) { root.wgtWeatherX = d.widgets.weather.x; weatherWin.x = d.widgets.weather.x; }
+                                if (d.widgets.weather.y !== undefined) { root.wgtWeatherY = d.widgets.weather.y; weatherWin.y = d.widgets.weather.y; }
                             }
                         }
                         if (d.widgets.music !== undefined) {
                             if (d.widgets.music.enabled !== undefined) root.wgtMusicEnabled = d.widgets.music.enabled;
-                            if (d.widgets.music.x !== undefined && !root.musicMoving) {
-                                root.wgtMusicX = d.widgets.music.x;
-                                if (musicWin.x !== d.widgets.music.x) musicWin.x = d.widgets.music.x;
-                            }
-                            if (d.widgets.music.y !== undefined && !root.musicMoving) {
-                                root.wgtMusicY = d.widgets.music.y;
-                                if (musicWin.y !== d.widgets.music.y) musicWin.y = d.widgets.music.y;
+                            if (!root.initialLoaded) {
+                                if (d.widgets.music.x !== undefined) { root.wgtMusicX = d.widgets.music.x; musicWin.x = d.widgets.music.x; }
+                                if (d.widgets.music.y !== undefined) { root.wgtMusicY = d.widgets.music.y; musicWin.y = d.widgets.music.y; }
                             }
                         }
+                        root.initialLoaded = true;
                     }
 
                     if (d.cpu_pct !== undefined) root.cpuPct = d.cpu_pct;
@@ -180,7 +161,7 @@ Item {
         xhr.send();
     }
 
-    Timer {
+    property var metricsTimer: Timer {
         interval: 800
         running: true
         repeat: true
@@ -195,7 +176,7 @@ Item {
     // =========================================================================
     // 1. HARDWARE USAGE WIDGET WINDOW (MODULAR, DRAGGABLE, STAYS ON DESKTOP)
     // =========================================================================
-    Window {
+    property var hwWin: Window {
         id: hwWin
         visible: root.desktopWidgetsEnabled && root.wgtHwEnabled
         x: root.wgtHwX
@@ -205,27 +186,6 @@ Item {
         color: "transparent"
         flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
         title: "Serpanplasma Hardware Widget"
-
-        Timer {
-            id: hwSaveTimer
-            interval: 350
-            repeat: false
-            onTriggered: {
-                root.hwMoving = false;
-                root.wgtHwX = Math.round(hwWin.x);
-                root.wgtHwY = Math.round(hwWin.y);
-                root.sendCmd("set_widget_pos", Math.round(hwWin.x) + "," + Math.round(hwWin.y), "hw");
-            }
-        }
-
-        onXChanged: {
-            root.hwMoving = true;
-            hwSaveTimer.restart();
-        }
-        onYChanged: {
-            root.hwMoving = true;
-            hwSaveTimer.restart();
-        }
 
         Rectangle {
             anchors.fill: parent
@@ -238,7 +198,17 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                onPressed: hwWin.startSystemMove()
+                property point clickPos: "0,0"
+                onPressed: (mouse) => { clickPos = Qt.point(mouse.x, mouse.y) }
+                onPositionChanged: (mouse) => {
+                    if (pressed) {
+                        hwWin.x += (mouse.x - clickPos.x)
+                        hwWin.y += (mouse.y - clickPos.y)
+                    }
+                }
+                onReleased: {
+                    root.sendCmd("set_widget_pos", Math.round(hwWin.x) + "," + Math.round(hwWin.y), "hw")
+                }
             }
 
             ColumnLayout {
@@ -323,7 +293,7 @@ Item {
     // =========================================================================
     // 2. CLOCK & DATE WIDGET WINDOW (MODULAR, DRAGGABLE, STAYS ON DESKTOP)
     // =========================================================================
-    Window {
+    property var clockWin: Window {
         id: clockWin
         visible: root.desktopWidgetsEnabled && root.wgtClockEnabled
         x: root.wgtClockX
@@ -333,27 +303,6 @@ Item {
         color: "transparent"
         flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
         title: "Serpanplasma Clock Widget"
-
-        Timer {
-            id: clockSaveTimer
-            interval: 350
-            repeat: false
-            onTriggered: {
-                root.clockMoving = false;
-                root.wgtClockX = Math.round(clockWin.x);
-                root.wgtClockY = Math.round(clockWin.y);
-                root.sendCmd("set_widget_pos", Math.round(clockWin.x) + "," + Math.round(clockWin.y), "clock");
-            }
-        }
-
-        onXChanged: {
-            root.clockMoving = true;
-            clockSaveTimer.restart();
-        }
-        onYChanged: {
-            root.clockMoving = true;
-            clockSaveTimer.restart();
-        }
 
         Rectangle {
             anchors.fill: parent
@@ -366,7 +315,17 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                onPressed: clockWin.startSystemMove()
+                property point clickPos: "0,0"
+                onPressed: (mouse) => { clickPos = Qt.point(mouse.x, mouse.y) }
+                onPositionChanged: (mouse) => {
+                    if (pressed) {
+                        clockWin.x += (mouse.x - clickPos.x)
+                        clockWin.y += (mouse.y - clickPos.y)
+                    }
+                }
+                onReleased: {
+                    root.sendCmd("set_widget_pos", Math.round(clockWin.x) + "," + Math.round(clockWin.y), "clock")
+                }
             }
 
             ColumnLayout {
@@ -393,9 +352,9 @@ Item {
     }
 
     // =========================================================================
-    // 3. WEATHER WIDGET WINDOW (WITH HOURLY BADGES & RICH METRICS)
+    // 3. WEATHER WIDGET WINDOW (MODULAR, DRAGGABLE, STAYS ON DESKTOP)
     // =========================================================================
-    Window {
+    property var weatherWin: Window {
         id: weatherWin
         visible: root.desktopWidgetsEnabled && root.wgtWeatherEnabled
         x: root.wgtWeatherX
@@ -405,27 +364,6 @@ Item {
         color: "transparent"
         flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
         title: "Serpanplasma Weather Widget"
-
-        Timer {
-            id: weatherSaveTimer
-            interval: 350
-            repeat: false
-            onTriggered: {
-                root.weatherMoving = false;
-                root.wgtWeatherX = Math.round(weatherWin.x);
-                root.wgtWeatherY = Math.round(weatherWin.y);
-                root.sendCmd("set_widget_pos", Math.round(weatherWin.x) + "," + Math.round(weatherWin.y), "weather");
-            }
-        }
-
-        onXChanged: {
-            root.weatherMoving = true;
-            weatherSaveTimer.restart();
-        }
-        onYChanged: {
-            root.weatherMoving = true;
-            weatherSaveTimer.restart();
-        }
 
         Rectangle {
             anchors.fill: parent
@@ -438,7 +376,17 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                onPressed: weatherWin.startSystemMove()
+                property point clickPos: "0,0"
+                onPressed: (mouse) => { clickPos = Qt.point(mouse.x, mouse.y) }
+                onPositionChanged: (mouse) => {
+                    if (pressed) {
+                        weatherWin.x += (mouse.x - clickPos.x)
+                        weatherWin.y += (mouse.y - clickPos.y)
+                    }
+                }
+                onReleased: {
+                    root.sendCmd("set_widget_pos", Math.round(weatherWin.x) + "," + Math.round(weatherWin.y), "weather")
+                }
             }
 
             ColumnLayout {
@@ -518,7 +466,7 @@ Item {
                     spacing: 6
 
                     Repeater {
-                        model: root.weatherHourly.slice(0, 5)
+                        model: (Array.isArray(root.weatherHourly) ? root.weatherHourly.slice(0, 5) : [])
                         delegate: Rectangle {
                             Layout.fillWidth: true
                             height: 62
@@ -545,7 +493,7 @@ Item {
     // =========================================================================
     // 4. MUSIC NOW-PLAYING WIDGET WINDOW (MODULAR, DRAGGABLE, STAYS ON DESKTOP)
     // =========================================================================
-    Window {
+    property var musicWin: Window {
         id: musicWin
         visible: root.desktopWidgetsEnabled && root.wgtMusicEnabled
         x: root.wgtMusicX
@@ -555,27 +503,6 @@ Item {
         color: "transparent"
         flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Tool
         title: "Serpanplasma Music Widget"
-
-        Timer {
-            id: musicSaveTimer
-            interval: 350
-            repeat: false
-            onTriggered: {
-                root.musicMoving = false;
-                root.wgtMusicX = Math.round(musicWin.x);
-                root.wgtMusicY = Math.round(musicWin.y);
-                root.sendCmd("set_widget_pos", Math.round(musicWin.x) + "," + Math.round(musicWin.y), "music");
-            }
-        }
-
-        onXChanged: {
-            root.musicMoving = true;
-            musicSaveTimer.restart();
-        }
-        onYChanged: {
-            root.musicMoving = true;
-            musicSaveTimer.restart();
-        }
 
         Rectangle {
             anchors.fill: parent
@@ -588,7 +515,17 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                onPressed: musicWin.startSystemMove()
+                property point clickPos: "0,0"
+                onPressed: (mouse) => { clickPos = Qt.point(mouse.x, mouse.y) }
+                onPositionChanged: (mouse) => {
+                    if (pressed) {
+                        musicWin.x += (mouse.x - clickPos.x)
+                        musicWin.y += (mouse.y - clickPos.y)
+                    }
+                }
+                onReleased: {
+                    root.sendCmd("set_widget_pos", Math.round(musicWin.x) + "," + Math.round(musicWin.y), "music")
+                }
             }
 
             RowLayout {
@@ -635,8 +572,9 @@ Item {
                     }
                 }
 
-                // Controls with independent MouseAreas
+                // Controls with independent MouseAreas (z: 2 ensures clicks register)
                 RowLayout {
+                    z: 2
                     spacing: 6
                     Rectangle {
                         width: 28; height: 28; radius: 7; color: root.themeCard; border.color: root.themeBorder; border.width: 1

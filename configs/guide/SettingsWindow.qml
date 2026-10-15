@@ -5,10 +5,10 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: window
     visible: true
-    width: 980
-    height: 660
-    minimumWidth: 840
-    minimumHeight: 580
+    width: 1040
+    height: 720
+    minimumWidth: 920
+    minimumHeight: 640
     title: "Serpanplasma — Guía y Configuración"
     color: "#0a0f1d"
 
@@ -134,6 +134,8 @@ ApplicationWindow {
 
     Component.onCompleted: {
         loadSettings();
+        x = Screen.virtualX + Math.max(0, (Screen.width - width) / 2);
+        y = Screen.virtualY + Math.max(0, (Screen.height - height) / 2);
     }
 
     RowLayout {
@@ -1850,6 +1852,9 @@ ApplicationWindow {
                 ScrollView {
                     contentWidth: -1
                     clip: true
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                    }
 
                     ColumnLayout {
                         width: parent.width
@@ -1880,7 +1885,9 @@ ApplicationWindow {
 
                             ColumnLayout {
                                 id: wgtCol
-                                anchors.fill: parent
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
                                 anchors.margins: 14
                                 spacing: 14
 

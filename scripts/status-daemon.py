@@ -657,8 +657,21 @@ def background_poller():
         subprocess.run(["kwriteconfig6", "--file", "kxkbrc", "--group", "Layout", "--key", "LayoutList", "es,us", "--notify"], timeout=1.0)
     except Exception:
         pass
+
+    home = os.path.expanduser("~")
+    w_path = os.path.join(home, ".local/share/serpanplasma/widgets/DesktopWidgets.qml")
+    w_env = os.environ.copy()
+    w_env["QT_QPA_PLATFORM"] = "xcb"
+
+    loop_count = 0
     while True:
         try:
+            loop_count += 1
+            if loop_count % 6 == 0:
+                if settings.get("desktop_widgets", False) and os.path.exists(w_path):
+                    check = subprocess.run(["pgrep", "-f", "[D]esktopWidgets.qml"], stdout=subprocess.PIPE, text=True)
+                    if not check.stdout.strip():
+                        subprocess.Popen(["qml6", w_path], env=w_env)
             update_weather()
             update_media()
             update_battery()
@@ -1075,6 +1088,13 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
             elif action == "reset_widget_pos":
                 save_setting("widgets", dict(DEFAULT_SETTINGS["widgets"]))
+                w_path = os.path.join(home, ".local/share/serpanplasma/widgets/DesktopWidgets.qml")
+                subprocess.run(["pkill", "-f", "[D]esktopWidgets.qml"])
+                time.sleep(0.2)
+                if settings.get("desktop_widgets", False) and os.path.exists(w_path):
+                    w_env = os.environ.copy()
+                    w_env["QT_QPA_PLATFORM"] = "xcb"
+                    subprocess.Popen(["qml6", w_path], env=w_env)
 
             # --- DESKTOP WIDGETS RUNNER ---
             elif action == "toggle_desktop_widgets":
@@ -1089,7 +1109,9 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                     if is_running:
                         subprocess.run(["pkill", "-f", "[D]esktopWidgets.qml"])
                         time.sleep(0.2)
-                    subprocess.Popen(["qml6", w_path], env=os.environ.copy())
+                    w_env = os.environ.copy()
+                    w_env["QT_QPA_PLATFORM"] = "xcb"
+                    subprocess.Popen(["qml6", w_path], env=w_env)
                     save_setting("desktop_widgets", True)
 
             elif action == "restart_kwin":

@@ -830,10 +830,10 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 380
-                height: 480
-                implicitWidth: 380
-                implicitHeight: 480
+                width: 390
+                height: 520
+                implicitWidth: 390
+                implicitHeight: 520
                 color: barContainer.themeBg
                 radius: 14
                 border.color: barContainer.themeAccent
@@ -945,10 +945,13 @@ PlasmoidItem {
 
                     ScrollView {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 84
+                        Layout.preferredHeight: 104
                         clip: true
                         ScrollBar.vertical.policy: ScrollBar.AlwaysOff
-                        ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+                        ScrollBar.horizontal: ScrollBar {
+                            policy: ScrollBar.AsNeeded
+                            implicitHeight: 6
+                        }
 
                         RowLayout {
                             spacing: 6
@@ -958,8 +961,8 @@ PlasmoidItem {
                                        ? barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)]
                                        : barContainer.weatherHourly
                                 delegate: Rectangle {
-                                    width: 60
-                                    height: 80
+                                    width: 62
+                                    height: 86
                                     radius: 8
                                     color: hourMouse.containsMouse ? barContainer.themeBorder : barContainer.themeCard
                                     border.color: hourMouse.containsMouse ? barContainer.themeAccent : barContainer.themeBorder
@@ -969,9 +972,9 @@ PlasmoidItem {
 
                                     ColumnLayout {
                                         anchors.centerIn: parent
-                                        spacing: 2
+                                        spacing: 3
                                         Text { text: modelData.time; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted; Layout.alignment: Qt.AlignHCenter }
-                                        Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 15; color: barContainer.themeAccent; Layout.alignment: Qt.AlignHCenter }
+                                        Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 16; color: barContainer.themeAccent; Layout.alignment: Qt.AlignHCenter }
                                         Text { text: modelData.temp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeFg; Layout.alignment: Qt.AlignHCenter }
                                         Text { text: "󰖗 " + modelData.pop; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 8; color: (modelData.pop !== "0%") ? "#38bdf8" : "#64748b"; Layout.alignment: Qt.AlignHCenter }
                                     }
