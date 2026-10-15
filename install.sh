@@ -75,10 +75,10 @@ fi
 echo -e "    ${GREEN}✓${RESET} Fuentes instaladas y registradas en fontconfig."
 
 # 4. Color Scheme Installation
-echo -e "${CYAN}==>${RESET} Instalando esquema de colores Serpanplasma Obsidian..."
+echo -e "${CYAN}==>${RESET} Instalando esquemas de colores Serpanplasma (Obsidian, Mocha, Emerald, Amethyst, Ruby, Porcelain, Latte, Nord Snow)..."
 COLOR_SCHEME_DIR="$HOME/.local/share/color-schemes"
 mkdir -p "$COLOR_SCHEME_DIR"
-cp "$SCRIPT_DIR/themes/color-schemes/Serpanplasma-Obsidian.colors" "$COLOR_SCHEME_DIR/"
+cp "$SCRIPT_DIR/themes/color-schemes"/*.colors "$COLOR_SCHEME_DIR/"
 
 if command -v plasma-apply-colorscheme &>/dev/null; then
     plasma-apply-colorscheme Serpanplasma-Obsidian >/dev/null 2>&1 || true
@@ -198,9 +198,10 @@ if command -v systemctl &>/dev/null; then
 fi
 
 # 14.1. Install Settings & Guide Dashboard Window
-echo -e "${CYAN}==>${RESET} Instalando ventana de Guía y Configuración (Settings Dashboard)..."
-mkdir -p "$HOME/.local/share/serpanplasma/guide" "$HOME/.local/bin" "$HOME/.local/share/applications"
+echo -e "${CYAN}==>${RESET} Instalando ventana de Guía y Configuración (Settings Dashboard) y Widgets de Escritorio..."
+mkdir -p "$HOME/.local/share/serpanplasma/guide" "$HOME/.local/share/serpanplasma/widgets" "$HOME/.local/bin" "$HOME/.local/share/applications"
 cp "$SCRIPT_DIR/configs/guide/SettingsWindow.qml" "$HOME/.local/share/serpanplasma/guide/"
+cp "$SCRIPT_DIR/configs/widgets/DesktopWidgets.qml" "$HOME/.local/share/serpanplasma/widgets/"
 cp "$SCRIPT_DIR/configs/bin/serpanplasma-settings" "$HOME/.local/bin/"
 chmod +x "$HOME/.local/bin/serpanplasma-settings"
 cp "$SCRIPT_DIR/configs/applications/serpanplasma-settings.desktop" "$HOME/.local/share/applications/"

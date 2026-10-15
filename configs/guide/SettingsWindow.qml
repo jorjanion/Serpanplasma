@@ -47,6 +47,9 @@ ApplicationWindow {
     property bool showAllTasks: true
     property string activeScope: "current"
     property int wallpaperInterval: 900
+    property bool wallpaperSlideshow: true
+    property bool desktopWidgetsEnabled: false
+    property string activeTheme: "Serpanplasma-Obsidian"
 
     function showToast(msg) {
         toastMessage = msg;
@@ -110,6 +113,9 @@ ApplicationWindow {
                     if (d.show_all_tasks !== undefined) window.showAllTasks = d.show_all_tasks;
                     if (d.active_scope !== undefined) window.activeScope = d.active_scope;
                     if (d.wallpaper_interval !== undefined) window.wallpaperInterval = d.wallpaper_interval;
+                    if (d.wallpaper_slideshow !== undefined) window.wallpaperSlideshow = d.wallpaper_slideshow;
+                    if (d.desktop_widgets !== undefined) window.desktopWidgetsEnabled = d.desktop_widgets;
+                    if (d.color_scheme !== undefined) window.activeTheme = d.color_scheme;
                 } catch(e) {}
             }
         };
@@ -207,9 +213,10 @@ ApplicationWindow {
                         ListElement { title: "Bienvenida"; icon: "󰋜"; sub: "Inicio y resumen" }
                         ListElement { title: "Barra Superior"; icon: "󰹑"; sub: "Píldoras y módulos" }
                         ListElement { title: "Dock de Apps"; icon: "󰮯"; sub: "Opciones completas" }
-                        ListElement { title: "Tema y Colores"; icon: "󰏘"; sub: "Obsidian & fuentes" }
+                        ListElement { title: "Tema y Colores"; icon: "󰏘"; sub: "8 temas oscuros y claros" }
                         ListElement { title: "Ventanas KWin"; icon: "󰈹"; sub: "Modo flotante libre" }
                         ListElement { title: "Wallpapers"; icon: "󰸉"; sub: "146 fondos y rotación" }
+                        ListElement { title: "Widgets Escritorio"; icon: "󰹑"; sub: "Hardware, reloj y clima" }
                         ListElement { title: "Sistema y Atajos"; icon: "󰒓"; sub: "Servicio y atajos" }
                         ListElement { title: "Acerca de"; icon: "󰋽"; sub: "Créditos y versión" }
                     }
@@ -510,6 +517,17 @@ ApplicationWindow {
                                 border.width: 1
                                 Text { anchors.centerIn: parent; text: "󰏘 Personalizar Tema"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.currentTab = 3 }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 40
+                                radius: 10
+                                color: "#1e293b"
+                                border.color: "#334155"
+                                border.width: 1
+                                Text { anchors.centerIn: parent; text: "󰹑 Widgets Escritorio"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.currentTab = 6 }
                             }
                         }
                     }
@@ -1310,84 +1328,218 @@ ApplicationWindow {
                             rowSpacing: 12
                             columnSpacing: 12
 
-                            // Obsidian (Recomendado)
+                            // 1. Obsidian (Serpantinum Oficial)
                             Rectangle {
-                                Layout.fillWidth: true
-                                height: 110
-                                radius: 12
-                                color: "#0f172a"
-                                border.color: "#38bdf8"
-                                border.width: 1.5
-
+                                Layout.fillWidth: true; height: 110; radius: 12; color: "#0f172a"
+                                border.color: (window.activeTheme === "Serpanplasma-Obsidian") ? "#38bdf8" : "#1e293b"; border.width: 1.5
                                 ColumnLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 14
-                                    spacing: 8
-
+                                    anchors.fill: parent; anchors.margins: 14; spacing: 8
                                     RowLayout {
-                                        Text { text: "Obsidian (Serpantinum Oficial)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#38bdf8" }
+                                        Text { text: "Obsidian (Serpantinum Oficial)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Obsidian") ? "#38bdf8" : "#f8fafc" }
                                         Item { Layout.fillWidth: true }
                                         Rectangle {
-                                            width: 60; height: 22; radius: 6; color: "#38bdf8"
-                                            Text { anchors.centerIn: parent; text: "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#0f172a" }
-                                            MouseArea {
-                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    window.sendCmd("apply_colorscheme", "Serpanplasma-Obsidian");
-                                                    window.showToast("Esquema Obsidian activado");
-                                                }
-                                            }
+                                            width: 60; height: 22; radius: 6; color: (window.activeTheme === "Serpanplasma-Obsidian") ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.activeTheme === "Serpanplasma-Obsidian") ? "#38bdf8" : "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: (window.activeTheme === "Serpanplasma-Obsidian") ? "Activo" : "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Obsidian") ? "#0f172a" : "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { window.activeTheme = "Serpanplasma-Obsidian"; window.sendCmd("apply_colorscheme", "Serpanplasma-Obsidian"); window.showToast("Esquema Obsidian activado"); } }
                                         }
                                     }
-
                                     RowLayout {
                                         spacing: 6
                                         Rectangle { width: 22; height: 22; radius: 5; color: "#0f172a"; border.color: "#334155"; border.width: 1 }
                                         Rectangle { width: 22; height: 22; radius: 5; color: "#1e293b" }
                                         Rectangle { width: 22; height: 22; radius: 5; color: "#38bdf8" }
                                         Rectangle { width: 22; height: 22; radius: 5; color: "#f8fafc" }
-                                        Text { text: "#0f172a / #1e293b / #38bdf8"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                        Text { text: "#0f172a / #38bdf8 (Oscuro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
                                     }
                                 }
                             }
 
-                            // Breeze Dark
+                            // 2. Mocha (Catppuccin)
                             Rectangle {
-                                Layout.fillWidth: true
-                                height: 110
-                                radius: 12
-                                color: "#0f172a"
-                                border.color: "#1e293b"
-                                border.width: 1
-
+                                Layout.fillWidth: true; height: 110; radius: 12; color: "#0f172a"
+                                border.color: (window.activeTheme === "Serpanplasma-Mocha") ? "#89b4fa" : "#1e293b"; border.width: 1.5
                                 ColumnLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 14
-                                    spacing: 8
-
+                                    anchors.fill: parent; anchors.margins: 14; spacing: 8
                                     RowLayout {
-                                        Text { text: "Breeze Dark"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                                        Text { text: "Catppuccin Mocha"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Mocha") ? "#89b4fa" : "#f8fafc" }
                                         Item { Layout.fillWidth: true }
                                         Rectangle {
-                                            width: 60; height: 22; radius: 6; color: "#1e293b"; border.color: "#334155"; border.width: 1
-                                            Text { anchors.centerIn: parent; text: "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#cbd5e1" }
-                                            MouseArea {
-                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    window.sendCmd("apply_colorscheme", "BreezeDark");
-                                                    window.showToast("Esquema Breeze Dark activado");
-                                                }
-                                            }
+                                            width: 60; height: 22; radius: 6; color: (window.activeTheme === "Serpanplasma-Mocha") ? "#89b4fa" : "#1e293b"
+                                            border.color: (window.activeTheme === "Serpanplasma-Mocha") ? "#89b4fa" : "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: (window.activeTheme === "Serpanplasma-Mocha") ? "Activo" : "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Mocha") ? "#0f172a" : "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { window.activeTheme = "Serpanplasma-Mocha"; window.sendCmd("apply_colorscheme", "Serpanplasma-Mocha"); window.showToast("Esquema Catppuccin Mocha activado"); } }
                                         }
                                     }
-
                                     RowLayout {
                                         spacing: 6
-                                        Rectangle { width: 22; height: 22; radius: 5; color: "#232629" }
-                                        Rectangle { width: 22; height: 22; radius: 5; color: "#31363b" }
-                                        Rectangle { width: 22; height: 22; radius: 5; color: "#3daee9" }
-                                        Rectangle { width: 22; height: 22; radius: 5; color: "#eff0f1" }
-                                        Text { text: "#232629 / #3daee9"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#1e1e2e"; border.color: "#313244"; border.width: 1 }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#313244" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#89b4fa" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#cdd6f4" }
+                                        Text { text: "#1e1e2e / #89b4fa (Oscuro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                    }
+                                }
+                            }
+
+                            // 3. Cyber Emerald
+                            Rectangle {
+                                Layout.fillWidth: true; height: 110; radius: 12; color: "#0f172a"
+                                border.color: (window.activeTheme === "Serpanplasma-Emerald") ? "#10b981" : "#1e293b"; border.width: 1.5
+                                ColumnLayout {
+                                    anchors.fill: parent; anchors.margins: 14; spacing: 8
+                                    RowLayout {
+                                        Text { text: "Cyber Emerald"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Emerald") ? "#10b981" : "#f8fafc" }
+                                        Item { Layout.fillWidth: true }
+                                        Rectangle {
+                                            width: 60; height: 22; radius: 6; color: (window.activeTheme === "Serpanplasma-Emerald") ? "#10b981" : "#1e293b"
+                                            border.color: (window.activeTheme === "Serpanplasma-Emerald") ? "#10b981" : "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: (window.activeTheme === "Serpanplasma-Emerald") ? "Activo" : "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Emerald") ? "#0f172a" : "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { window.activeTheme = "Serpanplasma-Emerald"; window.sendCmd("apply_colorscheme", "Serpanplasma-Emerald"); window.showToast("Esquema Cyber Emerald activado"); } }
+                                        }
+                                    }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#064e3b"; border.color: "#065f46"; border.width: 1 }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#065f46" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#10b981" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#ecfdf5" }
+                                        Text { text: "#064e3b / #10b981 (Oscuro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                    }
+                                }
+                            }
+
+                            // 4. Deep Amethyst
+                            Rectangle {
+                                Layout.fillWidth: true; height: 110; radius: 12; color: "#0f172a"
+                                border.color: (window.activeTheme === "Serpanplasma-Amethyst") ? "#a855f7" : "#1e293b"; border.width: 1.5
+                                ColumnLayout {
+                                    anchors.fill: parent; anchors.margins: 14; spacing: 8
+                                    RowLayout {
+                                        Text { text: "Deep Amethyst"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Amethyst") ? "#a855f7" : "#f8fafc" }
+                                        Item { Layout.fillWidth: true }
+                                        Rectangle {
+                                            width: 60; height: 22; radius: 6; color: (window.activeTheme === "Serpanplasma-Amethyst") ? "#a855f7" : "#1e293b"
+                                            border.color: (window.activeTheme === "Serpanplasma-Amethyst") ? "#a855f7" : "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: (window.activeTheme === "Serpanplasma-Amethyst") ? "Activo" : "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Amethyst") ? "#0f172a" : "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { window.activeTheme = "Serpanplasma-Amethyst"; window.sendCmd("apply_colorscheme", "Serpanplasma-Amethyst"); window.showToast("Esquema Deep Amethyst activado"); } }
+                                        }
+                                    }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#2e1065"; border.color: "#3b0764"; border.width: 1 }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#3b0764" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#a855f7" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#faf5ff" }
+                                        Text { text: "#2e1065 / #a855f7 (Oscuro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                    }
+                                }
+                            }
+
+                            // 5. Neon Ruby
+                            Rectangle {
+                                Layout.fillWidth: true; height: 110; radius: 12; color: "#0f172a"
+                                border.color: (window.activeTheme === "Serpanplasma-Ruby") ? "#f43f5e" : "#1e293b"; border.width: 1.5
+                                ColumnLayout {
+                                    anchors.fill: parent; anchors.margins: 14; spacing: 8
+                                    RowLayout {
+                                        Text { text: "Neon Ruby"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Ruby") ? "#f43f5e" : "#f8fafc" }
+                                        Item { Layout.fillWidth: true }
+                                        Rectangle {
+                                            width: 60; height: 22; radius: 6; color: (window.activeTheme === "Serpanplasma-Ruby") ? "#f43f5e" : "#1e293b"
+                                            border.color: (window.activeTheme === "Serpanplasma-Ruby") ? "#f43f5e" : "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: (window.activeTheme === "Serpanplasma-Ruby") ? "Activo" : "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Ruby") ? "#0f172a" : "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { window.activeTheme = "Serpanplasma-Ruby"; window.sendCmd("apply_colorscheme", "Serpanplasma-Ruby"); window.showToast("Esquema Neon Ruby activado"); } }
+                                        }
+                                    }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#450a0a"; border.color: "#7f1d1d"; border.width: 1 }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#7f1d1d" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#f43f5e" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#fff1f2" }
+                                        Text { text: "#450a0a / #f43f5e (Oscuro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                    }
+                                }
+                            }
+
+                            // 6. Porcelain (Light)
+                            Rectangle {
+                                Layout.fillWidth: true; height: 110; radius: 12; color: "#0f172a"
+                                border.color: (window.activeTheme === "Serpanplasma-Porcelain") ? "#0284c7" : "#1e293b"; border.width: 1.5
+                                ColumnLayout {
+                                    anchors.fill: parent; anchors.margins: 14; spacing: 8
+                                    RowLayout {
+                                        Text { text: "Porcelain White (Modo Claro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Porcelain") ? "#38bdf8" : "#f8fafc" }
+                                        Item { Layout.fillWidth: true }
+                                        Rectangle {
+                                            width: 60; height: 22; radius: 6; color: (window.activeTheme === "Serpanplasma-Porcelain") ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.activeTheme === "Serpanplasma-Porcelain") ? "#38bdf8" : "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: (window.activeTheme === "Serpanplasma-Porcelain") ? "Activo" : "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Porcelain") ? "#0f172a" : "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { window.activeTheme = "Serpanplasma-Porcelain"; window.sendCmd("apply_colorscheme", "Serpanplasma-Porcelain"); window.showToast("Esquema Porcelain White activado"); } }
+                                        }
+                                    }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#f8fafc"; border.color: "#cbd5e1"; border.width: 1 }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#e2e8f0" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#0284c7" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#0f172a" }
+                                        Text { text: "#f8fafc / #0284c7 (Claro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                    }
+                                }
+                            }
+
+                            // 7. Catppuccin Latte (Light)
+                            Rectangle {
+                                Layout.fillWidth: true; height: 110; radius: 12; color: "#0f172a"
+                                border.color: (window.activeTheme === "Serpanplasma-Latte") ? "#1e66f5" : "#1e293b"; border.width: 1.5
+                                ColumnLayout {
+                                    anchors.fill: parent; anchors.margins: 14; spacing: 8
+                                    RowLayout {
+                                        Text { text: "Catppuccin Latte (Modo Claro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Latte") ? "#38bdf8" : "#f8fafc" }
+                                        Item { Layout.fillWidth: true }
+                                        Rectangle {
+                                            width: 60; height: 22; radius: 6; color: (window.activeTheme === "Serpanplasma-Latte") ? "#1e66f5" : "#1e293b"
+                                            border.color: (window.activeTheme === "Serpanplasma-Latte") ? "#1e66f5" : "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: (window.activeTheme === "Serpanplasma-Latte") ? "Activo" : "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-Latte") ? "#ffffff" : "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { window.activeTheme = "Serpanplasma-Latte"; window.sendCmd("apply_colorscheme", "Serpanplasma-Latte"); window.showToast("Esquema Catppuccin Latte activado"); } }
+                                        }
+                                    }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#eff1f5"; border.color: "#ccd0da"; border.width: 1 }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#dce0e8" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#1e66f5" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#4c4f69" }
+                                        Text { text: "#eff1f5 / #1e66f5 (Claro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                    }
+                                }
+                            }
+
+                            // 8. Nord Snow (Light)
+                            Rectangle {
+                                Layout.fillWidth: true; height: 110; radius: 12; color: "#0f172a"
+                                border.color: (window.activeTheme === "Serpanplasma-NordSnow") ? "#5e81ac" : "#1e293b"; border.width: 1.5
+                                ColumnLayout {
+                                    anchors.fill: parent; anchors.margins: 14; spacing: 8
+                                    RowLayout {
+                                        Text { text: "Nord Snow Polar (Modo Claro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-NordSnow") ? "#38bdf8" : "#f8fafc" }
+                                        Item { Layout.fillWidth: true }
+                                        Rectangle {
+                                            width: 60; height: 22; radius: 6; color: (window.activeTheme === "Serpanplasma-NordSnow") ? "#5e81ac" : "#1e293b"
+                                            border.color: (window.activeTheme === "Serpanplasma-NordSnow") ? "#5e81ac" : "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: (window.activeTheme === "Serpanplasma-NordSnow") ? "Activo" : "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (window.activeTheme === "Serpanplasma-NordSnow") ? "#ffffff" : "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { window.activeTheme = "Serpanplasma-NordSnow"; window.sendCmd("apply_colorscheme", "Serpanplasma-NordSnow"); window.showToast("Esquema Nord Snow activado"); } }
+                                        }
+                                    }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#eceff4"; border.color: "#d8dee9"; border.width: 1 }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#e5e9f0" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#5e81ac" }
+                                        Rectangle { width: 22; height: 22; radius: 5; color: "#2e3440" }
+                                        Text { text: "#eceff4 / #5e81ac (Claro)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
                                     }
                                 }
                             }
@@ -1538,6 +1690,42 @@ ApplicationWindow {
                                 }
 
                                 RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "Diapositivas automáticas (Slideshow)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.wallpaperSlideshow
+                                        onToggled: {
+                                            window.wallpaperSlideshow = checked;
+                                            window.sendCmd("set_wallpaper_slideshow", checked ? "true" : "false");
+                                            window.showToast(checked ? "Diapositivas automáticas activadas" : "Diapositivas automáticas pausadas / fijadas");
+                                        }
+                                    }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "Fijar fondo actual (Modo estático)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Rectangle {
+                                        width: 160; height: 28; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                                        RowLayout {
+                                            anchors.centerIn: parent; spacing: 6
+                                            Text { text: "󰏤"; font.pixelSize: 12; color: "#38bdf8" }
+                                            Text { text: "Fijar Fondo Actual"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.wallpaperSlideshow = false;
+                                                window.sendCmd("freeze_wallpaper");
+                                                window.showToast("Fondo actual fijado como estático");
+                                            }
+                                        }
+                                    }
+                                }
+
+                                RowLayout {
                                     Text { text: "Intervalo de cambio de fondo:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
                                     RowLayout {
@@ -1648,7 +1836,155 @@ ApplicationWindow {
                     }
                 }
 
-                // ---------------- TAB 6: SISTEMA Y ATAJOS ----------------
+                // ---------------- TAB 6: WIDGETS DE ESCRITORIO ----------------
+                ScrollView {
+                    contentWidth: -1
+                    clip: true
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 18
+
+                        Text {
+                            text: "Widgets Flotantes de Escritorio"
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 18
+                            font.weight: Font.Black
+                            color: "#f8fafc"
+                        }
+
+                        Text {
+                            text: "Widgets translúcidos integrados directamente sobre el escritorio (Monitor de CPU/RAM/Disco/Uptime, Reloj Grande, Clima y Reproductor de Música)."
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 11
+                            color: "#94a3b8"
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: wgtCol.implicitHeight + 28
+                            radius: 12
+                            color: "#0f172a"
+                            border.color: "#1e293b"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: wgtCol
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 14
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    ColumnLayout {
+                                        spacing: 2
+                                        Text { text: "󰹑 Estado de los Widgets de Escritorio"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                                        Text { text: "Muestra tarjetas translúcidas fijas con métricas de sistema en tiempo real"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.desktopWidgetsEnabled
+                                        onToggled: {
+                                            window.desktopWidgetsEnabled = checked;
+                                            window.sendCmd("toggle_desktop_widgets", checked ? "true" : "false");
+                                            window.showToast(checked ? "Widgets de escritorio activados" : "Widgets de escritorio desactivados");
+                                        }
+                                    }
+                                }
+
+                                Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
+
+                                Text { text: "Componentes Incluidos:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 10
+
+                                    Rectangle {
+                                        Layout.fillWidth: true; height: 70; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
+                                        ColumnLayout {
+                                            anchors.fill: parent; anchors.margins: 10; spacing: 4
+                                            RowLayout {
+                                                Text { text: "󰍛"; font.pixelSize: 14; color: "#38bdf8" }
+                                                Text { text: "Monitor de Hardware"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                            }
+                                            Text { text: "CPU %, RAM usada/total, SSD libre y tiempo encendido (uptime)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        Layout.fillWidth: true; height: 70; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
+                                        ColumnLayout {
+                                            anchors.fill: parent; anchors.margins: 10; spacing: 4
+                                            RowLayout {
+                                                Text { text: "󰥔"; font.pixelSize: 14; color: "#38bdf8" }
+                                                Text { text: "Reloj Gigante & Calendario"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                            }
+                                            Text { text: "Hora tipográfica y fecha en español en tiempo real"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        Layout.fillWidth: true; height: 70; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
+                                        ColumnLayout {
+                                            anchors.fill: parent; anchors.margins: 10; spacing: 4
+                                            RowLayout {
+                                                Text { text: "󰖙"; font.pixelSize: 14; color: "#38bdf8" }
+                                                Text { text: "Tarjeta Climatológica"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                            }
+                                            Text { text: "Temperatura, sensación térmica, viento, humedad y pronóstico a 4 días"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        Layout.fillWidth: true; height: 70; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
+                                        ColumnLayout {
+                                            anchors.fill: parent; anchors.margins: 10; spacing: 4
+                                            RowLayout {
+                                                Text { text: "󰎆"; font.pixelSize: 14; color: "#38bdf8" }
+                                                Text { text: "Reproductor MPRIS"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                            }
+                                            Text { text: "Título, artista y botones de reproducción para Spotify, navegador, etc."; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
+                                        }
+                                    }
+                                }
+
+                                RowLayout {
+                                    spacing: 12
+                                    Rectangle {
+                                        Layout.fillWidth: true; height: 36; radius: 8; color: "#38bdf8"
+                                        Text { anchors.centerIn: parent; text: "󰑓 Recargar / Reiniciar Widgets"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#0f172a" }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.sendCmd("toggle_desktop_widgets", "true");
+                                                window.desktopWidgetsEnabled = true;
+                                                window.showToast("Reiniciando widgets de escritorio...");
+                                            }
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        Layout.fillWidth: true; height: 36; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1
+                                        Text { anchors.centerIn: parent; text: "󰅖 Ocultar Widgets"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.sendCmd("toggle_desktop_widgets", "false");
+                                                window.desktopWidgetsEnabled = false;
+                                                window.showToast("Widgets de escritorio ocultados");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ---------------- TAB 7: SISTEMA Y ATAJOS ----------------
                 ScrollView {
                     contentWidth: -1
                     clip: true
@@ -1735,7 +2071,7 @@ ApplicationWindow {
                     }
                 }
 
-                // ---------------- TAB 7: ACERCA DE ----------------
+                // ---------------- TAB 8: ACERCA DE ----------------
                 ScrollView {
                     contentWidth: -1
                     clip: true

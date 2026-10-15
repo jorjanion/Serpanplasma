@@ -39,8 +39,20 @@ It delivers Serpantinum's aesthetics without tiling window managers (like Hyprla
   - `Win + Down Arrow`: Restore or minimize active window.
   - `Win + E`: Launch Dolphin file manager.
 - ✅ **Floating Top Bar with Native Pills:** Translucent floating top panel with rounded corners, native KWin blur, and capsules identical to Serpantinum.
-- ✅ **Floating Application Dock:** Centered floating bottom dock with task indicators for your favorite apps.
-- ✅ **Interactive 1:1 Settings & Guide Dashboard:** Standalone Qt6/QML guide with a Welcome screen, comprehensive dock settings, bar configurations, theme selectors, and system toggles.
+- ✅ **Floating Application Dock:** Centered floating bottom dock with task indicators, hover zoom, and intelligent window dodging.
+- ✅ **Native Wayland Dropdown Dialogs:** Clicking top bar pills opens interactive popup cards anchored directly below:
+  - 󰖙 **Weather Card:** 4-day forecast with feels like, humidity, and wind metrics.
+  - 󰃮 **Monthly Calendar:** Interactive calendar with previous/next month navigation.
+  - 󰁹 **Battery & Power Profiles:** 1-click power profile switching (`Performance`, `Balanced`, `Power Saver`).
+  - 󰤨 **Network Details:** SSID, local IPv4 address, and network shortcuts.
+  - 󰕾 **Volume Card:** Master slider, mute toggle, and quick presets (25%, 50%, 75%, 100%).
+  - 󰏘 **Quick Theme Switcher:** Instant 1-click theme switching between 8 palettes.
+- ✅ **8 Dark & Light Color Palettes:**
+  - **Dark:** `Obsidian` (Serpantinum Official), `Catppuccin Mocha`, `Cyber Emerald`, `Deep Amethyst`, `Neon Ruby`.
+  - **Light:** `Porcelain White`, `Catppuccin Latte`, `Nord Snow Polar`.
+- ✅ **Wallpaper Controls:** Automatic rotation toggle (slideshow) and 1-click button to freeze current wallpaper as static.
+- ✅ **Desktop Widgets:** Floating translucent desktop cards for hardware monitoring (CPU, RAM, NVMe Disk, Uptime), giant clock, weather, and MPRIS music.
+- ✅ **Interactive 1:1 Settings & Guide Dashboard:** Standalone Qt6/QML guide with 9 specialized tabs, welcome banner, and real-time reactive toggles.
 - ✅ **Universal Compatibility:** Tailored for any Linux distribution running KDE Plasma 6 (CachyOS, Arch Linux, Fedora, openSUSE, Debian, etc.) and fully verified on hybrid graphics (AMD + NVIDIA 144Hz).
 
 ---
@@ -49,27 +61,26 @@ It delivers Serpantinum's aesthetics without tiling window managers (like Hyprla
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  [⚙]  [ ━ ] ● ● ● ● ● ● ●  [ ♫ Track Title ⏮ ▶ ⏭ ]        19:36:38       󰖙 24.0°C      [󰕾] [US] [󰈀 Ethernet] [󰁹 100%] [⏻]  │
-│                                                     jueves, 15 de octubre                                     │
+│ [⚙] [ ━ ] ● ● ● ● ● ● ● [ ♫ Title ⏮ ▶ ⏭ ]   [15 Oct.] [ 17:32:27 ] [󰖙 22°C]   [󰏘] [󰕾] [EN] [󰤨 Net] [󰁹 100%] [⏻] │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 1. Floating Top Bar (`org.serpanplasma.bar`)
 - **Left Section:**
-  - `[ ⚙ ]`: Rounded square button that opens and toggles the **Serpanplasma Settings & Guide** window.
-  - `[ ━ ] ● ● ● ● ● ● ●`: Workspaces module (`PillsFace`) featuring an expanded mauve/lavender pill (`#d0d0d0`) for the active workspace and 7 circular dots (`#1e293b`) for inactive desktops, with smooth animations and click-to-switch.
-  - `[ ♪ Title - Artist ⏮ ▶ ⏭ ]`: Media capsule displaying the currently playing track or *"No hay nada reprc"*, with interactive MPRIS playback controls (previous, play/pause, next).
-- **Center Section:**
-  - **Stacked Digital Clock:**
-    - Line 1: Exact time in `HH:mm:ss` format using **JetBrains Mono Nerd Font** in heavy Black weight.
-    - Line 2: Full date localized in Spanish (`dddd, d 'de' MMMM`) in subtle slate grey (`#94a3b8`).
-  - **Live Weather Capsule:** Real-time weather condition icon (`☁`, `󰖙`, `󰖖`, etc.) and temperature in Celsius fetched from Open-Meteo.
+  - `[ ⚙ ]`: Rounded square button that toggles the **Serpanplasma Settings & Guide** window.
+  - `[ ━ ] ● ● ● ● ● ● ●`: Interactive 8 virtual desktops module with active lavender pill (`#d0d0d0`) and circular dots (`#1e293b`).
+  - `[ ♪ Title - Artist ⏮ ▶ ⏭ ]`: Media capsule with MPRIS controls (previous, play/pause, next).
+- **Center Section (Symmetrical Trio):**
+  - `[ 15 Oct. ]`: Short date pill opening interactive monthly calendar.
+  - `[ 17:32:27 ]`: **Mathematically centered digital clock** in JetBrains Mono Black.
+  - `[ 󰖙 22.1°C ]`: Weather pill opening 4-day forecast dialog.
 - **Right Section:**
-  - `[ 󰕾 ]`: Interactive volume control with mouse scroll support (volume up/down) and click-to-mute.
-  - `[ US / EN ]`: Current keyboard layout indicator.
-  - `[ 󰤨 Connected ]` / `[ 󰈀 Ethernet ]`: **Solid crisp white capsule (`#f8fafc`)** with high-contrast dark text and icon (`#0f172a`), indicating network status and SSID.
-  - `[ 󰁹 100% ]`: **Solid crisp white capsule (`#f8fafc`)** with dynamic battery/charging icon and percentage.
-  - `[ ⏻ ]`: Circular power button triggering Plasma's logout and shutdown dialogue.
+  - `[ 󰏘 ]`: Quick theme switcher dialog.
+  - `[ 󰕾 ]`: Interactive volume pill with slider popup.
+  - `[ US / ES ]`: Keyboard layout indicator.
+  - `[ 󰤨 Net ]`: Solid white capsule opening network dialog.
+  - `[ 󰁹 100% ]`: Solid white capsule opening battery & power profiles dialog.
+  - `[ ⏻ ]`: Power button triggering Plasma logout/shutdown.
 
 ### 2. Centered Floating Application Dock
 - Floating panel detached from the bottom screen edge.
@@ -79,12 +90,14 @@ It delivers Serpantinum's aesthetics without tiling window managers (like Hyprla
 ### 3. Settings & Guide Dashboard (`serpanplasma-settings`)
 - Exact recreation of Serpantinum's `GuidePopup.qml` & `WelcomeTab.qml`:
   - **Welcome Tab:** Hero banner, version badge `v1.0.0`, feature cards, and quick navigation shortcuts.
-  - **Top Bar Tab:** Height sliders (32px - 48px), module visibility toggles, and instant reload button.
-  - **Dock Tab:** Comprehensive settings matching the original (position, element size, autohide, smart autohide, hover scale, running indicators, pinned apps).
-  - **Theme Tab:** Obsidian palette (official), Catppuccin Mocha, and Breeze Dark with live color chips and font info.
-  - **Windows Tab:** KWin floating rules, click-to-raise, 12px rounded corners, 35% shadow, and shortcut overview.
-  - **Wallpapers Tab:** Slideshow intervals and instant next wallpaper switch for `~/Imágenes/Wallpapers/`.
-  - **System & About:** Hardware compositor metrics and GitHub project links.
+  - **Top Bar Tab:** Height sliders, opacity sliders, distinct pills vs edge-to-edge toggle, module visibility.
+  - **Dock Tab:** Comprehensive settings (position, size, autohide, dodge windows, hover scale, indicators).
+  - **Theme Tab:** 8 color schemes (5 dark, 3 light) with color swatches and 1-click activation.
+  - **Windows Tab:** KWin floating rules, click-to-raise, rounded corners, and shortcut overview.
+  - **Wallpapers Tab:** Slideshow toggle, static freeze button, intervals, and Dolphin shortcut.
+  - **Desktop Widgets Tab:** Toggle and reload controls for hardware monitor, big clock, and live weather.
+  - **System & Shortcuts Tab:** Standard Windows shortcuts and daemon restart.
+  - **About Tab:** Credits, architecture, and project links.
 
 ---
 

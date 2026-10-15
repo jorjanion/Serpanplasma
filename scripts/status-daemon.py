@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 Serpanplasma Status & Settings Daemon
-Ultra-lightweight background daemon that queries system metrics (workspaces, media, battery, network, volume, weather)
-and provides real-time command execution for the Serpanplasma Top Bar, Dock and Settings Dashboard.
+Ultra-lightweight background daemon that queries system metrics (workspaces, media, battery, network, volume, weather, cpu, ram)
+and provides real-time command execution for the Serpanplasma Top Bar, Dock, Desktop Widgets and Settings Dashboard.
 """
 
 import http.server
 import json
 import os
+import shutil
 import subprocess
 import threading
 import time
@@ -48,7 +49,10 @@ DEFAULT_SETTINGS = {
     "show_all_tasks": True,
     "active_scope": "current",
     "color_scheme": "Serpanplasma-Obsidian",
-    "wallpaper_interval": 900
+    "wallpaper_slideshow": True,
+    "wallpaper_interval": 900,
+    "desktop_widgets": False,
+    "power_profile": "performance"
 }
 
 lock = threading.Lock()
@@ -93,17 +97,33 @@ state = {
     "network": "Connected",
     "network_icon": "󰤨",
     "network_ssid": "Connected",
+    "local_ip": "127.0.0.1",
     "desktop": 1,
     "desktops_count": 8,
-    "temp": "25.4°C",
+    "temp": "22.1°C",
+    "weather_feels_like": "21.0°C",
+    "weather_humidity": 55,
+    "weather_wind": "4.0 km/h",
     "weather_icon": "󰖙",
+    "weather_desc": "Despejado",
+    "weather_forecast": [],
     "volume": 75,
     "volume_icon": "󰕾",
     "volume_muted": False,
-    "lang": "ES"
+    "lang": "ES",
+    "cpu_pct": 10,
+    "ram_pct": 40,
+    "ram_used_gb": 6.0,
+    "ram_total_gb": 15.0,
+    "disk_pct": 10,
+    "disk_free_gb": 440.0,
+    "uptime": "1h 0m",
+    "power_profile": "performance"
 }
 
 last_weather_fetch = 0
+prev_cpu_total = 0
+prev_cpu_idle = 0
 
 def run_cmd(args):
     try:
@@ -125,33 +145,91 @@ def eval_plasma_script(js_code):
     except Exception:
         return ""
 
+def ensure_virtual_desktops():
+    """Ensure KWin has 8 virtual desktops configured for Serpantinum workspace navigation."""
+    try:
+        res = subprocess.run(
+            ["qdbus6", "org.kde.KWin", "/VirtualDesktopManager", "org.kde.KWin.VirtualDesktopManager.count"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=1.5
+        )
+        cnt = int(res.stdout.strip()) if res.stdout.strip().isdigit() else 1
+        if cnt < 8:
+            for i in range(cnt + 1, 9):
+                subprocess.run(
+                    ["qdbus6", "org.kde.KWin", "/VirtualDesktopManager", "createDesktop", str(i - 1), f"Escritorio {i}"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1.0
+                )
+    except Exception:
+        pass
+
 def update_weather():
     global last_weather_fetch, state
     now = time.time()
-    if now - last_weather_fetch < 900 and last_weather_fetch != 0:
+    if now - last_weather_fetch < 600 and last_weather_fetch != 0:
         return
     last_weather_fetch = now
     try:
         import urllib.request
-        url = "https://api.open-meteo.com/v1/forecast?latitude=40.4168&longitude=-3.7038&current=temperature_2m,weather_code"
+        url = "https://api.open-meteo.com/v1/forecast?latitude=40.4168&longitude=-3.7038&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto"
         req = urllib.request.Request(url, headers={'User-Agent': 'Serpanplasma/1.0'})
-        with urllib.request.urlopen(req, timeout=3.0) as resp:
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
             data = json.loads(resp.read().decode())
-            temp = data.get("current", {}).get("temperature_2m")
-            code = data.get("current", {}).get("weather_code", 0)
-            if temp is not None:
-                icon = "☁"
-                if code in (0, 1):
-                    icon = "󰖙"
-                elif code in (2, 3):
-                    icon = "☁"
-                elif code in (45, 48):
-                    icon = "󰖑"
-                elif code in (51, 53, 55, 61, 63, 65):
-                    icon = "󰖖"
-                with lock:
+            cur = data.get("current", {})
+            daily = data.get("daily", {})
+            temp = cur.get("temperature_2m")
+            feels = cur.get("apparent_temperature", temp)
+            hum = cur.get("relative_humidity_2m", 50)
+            wind = cur.get("wind_speed_10m", 0)
+            code = cur.get("weather_code", 0)
+
+            code_map = {
+                0: ("󰖙", "Despejado"),
+                1: ("󰖙", "Mayormente despejado"),
+                2: ("☁", "Parcialmente nublado"),
+                3: ("☁", "Nublado"),
+                45: ("󰖑", "Niebla"),
+                48: ("󰖑", "Niebla con escarcha"),
+                51: ("󰖖", "Llovizna ligera"),
+                53: ("󰖖", "Llovizna moderada"),
+                55: ("󰖖", "Llovizna densa"),
+                61: ("󰖖", "Lluvia ligera"),
+                63: ("󰖖", "Lluvia moderada"),
+                65: ("󰖖", "Lluvia fuerte"),
+                71: ("󰼶", "Nevada ligera"),
+                73: ("󰼶", "Nevada moderada"),
+                75: ("󰼶", "Nevada fuerte"),
+                95: ("󰖓", "Tormenta eléctrica")
+            }
+
+            icon, desc = code_map.get(code, ("☁", "Variable"))
+
+            # Build 4-day forecast
+            forecast = []
+            day_names = ["Hoy", "Mañana", "Sábado", "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+            max_list = daily.get("temperature_2m_max", [])
+            min_list = daily.get("temperature_2m_min", [])
+            code_list = daily.get("weather_code", [])
+
+            for idx in range(min(4, len(max_list))):
+                d_code = code_list[idx] if idx < len(code_list) else 0
+                d_icon, _ = code_map.get(d_code, ("☁", ""))
+                d_name = day_names[idx] if idx < len(day_names) else f"+{idx}d"
+                forecast.append({
+                    "day": d_name,
+                    "icon": d_icon,
+                    "max": f"{round(max_list[idx])}°",
+                    "min": f"{round(min_list[idx])}°"
+                })
+
+            with lock:
+                if temp is not None:
                     state["temp"] = f"{temp:.1f}°C"
+                    state["weather_feels_like"] = f"{feels:.1f}°C"
+                    state["weather_humidity"] = hum
+                    state["weather_wind"] = f"{wind:.1f} km/h"
                     state["weather_icon"] = icon
+                    state["weather_desc"] = desc
+                    state["weather_forecast"] = forecast
     except Exception:
         pass
 
@@ -200,6 +278,10 @@ def update_battery():
 def update_network():
     global state
     ssid = run_cmd(["bash", "-c", "nmcli -t -f active,ssid dev wifi 2>/dev/null | grep '^yes' | cut -d: -f2 | head -n 1"])
+    ip = run_cmd(["bash", "-c", "ip -4 addr show scope global 2>/dev/null | grep inet | awk '{print $2}' | cut -d/ -f1 | head -n 1"])
+    if not ip:
+        ip = "127.0.0.1"
+
     if not ssid:
         eth = run_cmd(["bash", "-c", "cat /sys/class/net/e*/operstate 2>/dev/null | grep up | head -n 1"])
         if eth:
@@ -207,6 +289,7 @@ def update_network():
                 state["network"] = "Connected"
                 state["network_ssid"] = "Ethernet"
                 state["network_icon"] = "󰈀"
+                state["local_ip"] = ip
             return
         gw = run_cmd(["bash", "-c", "ip route show default 2>/dev/null | head -n 1"])
         if gw:
@@ -214,16 +297,19 @@ def update_network():
                 state["network"] = "Connected"
                 state["network_ssid"] = "Connected"
                 state["network_icon"] = "󰤨"
+                state["local_ip"] = ip
         else:
             with lock:
                 state["network"] = "Disconnected"
                 state["network_ssid"] = "Disconnected"
                 state["network_icon"] = "󰤭"
+                state["local_ip"] = ip
     else:
         with lock:
             state["network"] = "Connected"
             state["network_ssid"] = ssid if ssid else "Connected"
             state["network_icon"] = "󰤨"
+            state["local_ip"] = ip
 
 def update_workspaces():
     global state
@@ -253,6 +339,70 @@ def update_volume():
             except Exception:
                 pass
 
+def update_system_metrics():
+    global state, prev_cpu_total, prev_cpu_idle
+    # CPU
+    try:
+        with open("/proc/stat") as f:
+            cpu_line = f.readline().split()[1:]
+            vals = [float(x) for x in cpu_line]
+            idle = vals[3] + vals[4]
+            total = sum(vals)
+            diff_idle = idle - prev_cpu_idle
+            diff_total = total - prev_cpu_total
+            prev_cpu_idle = idle
+            prev_cpu_total = total
+            cpu_pct = int(100.0 * (1.0 - (diff_idle / diff_total))) if diff_total > 0 else 5
+            cpu_pct = max(0, min(100, cpu_pct))
+    except Exception:
+        cpu_pct = 5
+
+    # RAM
+    try:
+        with open("/proc/meminfo") as f:
+            lines = dict(l.split(":") for l in f.readlines())
+        total_kb = int(lines["MemTotal"].split()[0])
+        avail_kb = int(lines["MemAvailable"].split()[0])
+        used_kb = total_kb - avail_kb
+        ram_pct = int((used_kb / total_kb) * 100)
+        ram_used = round(used_kb / (1024 * 1024), 1)
+        ram_total = round(total_kb / (1024 * 1024), 1)
+    except Exception:
+        ram_pct, ram_used, ram_total = 30, 4.0, 16.0
+
+    # Disk
+    try:
+        du = shutil.disk_usage("/")
+        disk_pct = int((du.used / du.total) * 100)
+        disk_free = round(du.free / (1024**3), 1)
+    except Exception:
+        disk_pct, disk_free = 10, 400.0
+
+    # Uptime
+    try:
+        with open("/proc/uptime") as f:
+            up_secs = int(float(f.readline().split()[0]))
+            hours = up_secs // 3600
+            mins = (up_secs % 3600) // 60
+            uptime_str = f"{hours}h {mins}m"
+    except Exception:
+        uptime_str = "1h"
+
+    # Power profile
+    prof = run_cmd(["powerprofilesctl", "get"])
+    if not prof:
+        prof = settings.get("power_profile", "performance")
+
+    with lock:
+        state["cpu_pct"] = cpu_pct
+        state["ram_pct"] = ram_pct
+        state["ram_used_gb"] = ram_used
+        state["ram_total_gb"] = ram_total
+        state["disk_pct"] = disk_pct
+        state["disk_free_gb"] = disk_free
+        state["uptime"] = uptime_str
+        state["power_profile"] = prof
+
 def update_lang():
     global state
     layout = run_cmd(["bash", "-c", "setxkbmap -query 2>/dev/null | grep layout | awk '{print $2}'"])
@@ -264,6 +414,7 @@ def update_lang():
             state["lang"] = "ES"
 
 def background_poller():
+    ensure_virtual_desktops()
     while True:
         try:
             update_weather()
@@ -272,6 +423,7 @@ def background_poller():
             update_network()
             update_workspaces()
             update_volume()
+            update_system_metrics()
             update_lang()
         except Exception:
             pass
@@ -316,7 +468,10 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             elif action == "next":
                 subprocess.Popen(["playerctl", "next"])
             elif action == "desktop" and val:
+                # Switch desktop and ensure desktop exists
                 subprocess.Popen(["qdbus6", "org.kde.KWin", "/KWin", "org.kde.KWin.setCurrentDesktop", str(val)])
+            elif action == "ensure_desktops":
+                ensure_virtual_desktops()
             elif action == "launcher":
                 subprocess.Popen(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.activateApplicationMenu"])
             elif action == "power":
@@ -325,8 +480,21 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 subprocess.Popen(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+"])
             elif action == "vol_down":
                 subprocess.Popen(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-"])
+            elif action == "vol_set" and val:
+                try:
+                    pct = float(val) / 100.0
+                    subprocess.Popen(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{pct:.2f}"])
+                except Exception:
+                    pass
             elif action == "vol_mute":
                 subprocess.Popen(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
+
+            # --- POWER PROFILE ---
+            elif action == "set_power_profile" and val:
+                subprocess.run(["powerprofilesctl", "set", val])
+                save_setting("power_profile", val)
+                with lock:
+                    state["power_profile"] = val
 
             # --- DOCK CONTROLS ---
             elif action == "set_dock_floating":
@@ -373,7 +541,6 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 save_setting("dock_position", loc)
 
             elif action == "set_dock_visibility" and val:
-                # Plasma 6 supports: "dodgewindows", "autohide", "none"
                 eval_plasma_script(f'''
                     var p = panels();
                     for (var i = 0; i < p.length; i++) {{
@@ -464,11 +631,40 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                     for (var i = 0; i < p.length; i++) {{
                         if (p[i].id === 55 || p[i].location === "top" || p[i].height <= 45) {{
                             p[i].floating = {js_val};
+                            if (!{js_val}) {{
+                                p[i].lengthMode = "fill";
+                            }}
                         }}
                     }}
                 ''')
                 subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "55", "--key", "floating", "--type", "bool", js_val])
                 save_setting("bar_floating", is_float)
+
+            elif action == "set_distinct_pills":
+                is_pills = (val.lower() in ("true", "1", "yes"))
+                # When distinct pills is false (unified), set top panel lengthMode="fill" and floating=false so it spans 100% of the display edge-to-edge!
+                if not is_pills:
+                    eval_plasma_script('''
+                        var p = panels();
+                        for (var i = 0; i < p.length; i++) {
+                            if (p[i].id === 55 || p[i].location === "top" || p[i].height <= 45) {
+                                p[i].floating = false;
+                                p[i].lengthMode = "fill";
+                            }
+                        }
+                    ''')
+                    subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "55", "--key", "floating", "--type", "bool", "false"])
+                else:
+                    eval_plasma_script('''
+                        var p = panels();
+                        for (var i = 0; i < p.length; i++) {
+                            if (p[i].id === 55 || p[i].location === "top" || p[i].height <= 45) {
+                                p[i].floating = true;
+                            }
+                        }
+                    ''')
+                    subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "55", "--key", "floating", "--type", "bool", "true"])
+                save_setting("bar_distinct_pills", is_pills)
 
             elif action == "set_bar_height" and val:
                 try:
@@ -492,14 +688,31 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            elif action == "set_distinct_pills":
-                save_setting("bar_distinct_pills", val.lower() in ("true", "1", "yes"))
-
             elif action == "set_bar_module" and mod:
                 is_on = (val.lower() in ("true", "1", "yes"))
                 save_setting(f"bar_mod_{mod}", is_on)
 
             # --- WALLPAPERS & THEMES ---
+            elif action == "set_wallpaper_slideshow":
+                is_slide = (val.lower() in ("true", "1", "yes"))
+                plugin = "org.kde.slideshow" if is_slide else "org.kde.image"
+                eval_plasma_script(f'''
+                    var ds = desktops();
+                    for (var i = 0; i < ds.length; i++) {{
+                        ds[i].wallpaperPlugin = "{plugin}";
+                    }}
+                ''')
+                save_setting("wallpaper_slideshow", is_slide)
+
+            elif action == "freeze_wallpaper":
+                eval_plasma_script('''
+                    var ds = desktops();
+                    for (var i = 0; i < ds.length; i++) {
+                        ds[i].wallpaperPlugin = "org.kde.image";
+                    }
+                ''')
+                save_setting("wallpaper_slideshow", False)
+
             elif action == "next_wallpaper":
                 eval_plasma_script('''
                     var ds = desktops();
@@ -532,6 +745,22 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 subprocess.run(["plasma-apply-colorscheme", val])
                 save_setting("color_scheme", val)
 
+            # --- DESKTOP WIDGETS ---
+            elif action == "toggle_desktop_widgets":
+                w_path = os.path.join(home, ".local/share/serpanplasma/widgets/DesktopWidgets.qml")
+                check = subprocess.run(["pgrep", "-f", "[D]esktopWidgets.qml"], stdout=subprocess.PIPE, text=True)
+                is_running = bool(check.stdout.strip())
+                should_run = (not is_running) if not val else (val.lower() == "true")
+                if is_running and not should_run:
+                    subprocess.run(["pkill", "-f", "[D]esktopWidgets.qml"])
+                    save_setting("desktop_widgets", False)
+                elif should_run:
+                    if is_running:
+                        subprocess.run(["pkill", "-f", "[D]esktopWidgets.qml"])
+                        time.sleep(0.2)
+                    subprocess.Popen(["qml6", w_path], env=os.environ.copy())
+                    save_setting("desktop_widgets", True)
+
             elif action == "restart_kwin":
                 subprocess.run(["qdbus6", "org.kde.KWin", "/KWin", "reconfigure"])
 
@@ -558,6 +787,7 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         pass
 
 def main():
+    ensure_virtual_desktops()
     poller = threading.Thread(target=background_poller, daemon=True)
     poller.start()
 

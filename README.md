@@ -37,7 +37,19 @@
   - `Win + Flecha Abajo`: Restaurar o minimizar ventana activa.
   - `Win + E`: Abrir el explorador de archivos Dolphin.
 - ✅ **Barra Superior Flotante con Píldoras Exactas:** Barra flotante translúcida con esquinas redondeadas, blur nativo de KWin y cápsulas idénticas a Serpantinum.
-- ✅ **Dock de Aplicaciones Flotante Inferior:** Dock centrado con los iconos de tareas de tus aplicaciones favoritas.
+- ✅ **Dock de Aplicaciones Flotante Inferior:** Dock centrado con los iconos de tareas de tus aplicaciones favoritas y zoom al pasar el ratón.
+- ✅ **Menús Desplegables Nativos (Wayland Dialogs):** Haz clic en las píldoras de la barra para abrir paneles emergentes detallados:
+  - 󰖙 **Clima:** Pronóstico meteorológico a 4 días con sensación térmica, humedad y viento.
+  - 󰃮 **Calendario:** Vista interactiva de mes completo con navegación anterior/siguiente.
+  - 󰁹 **Batería & Energía:** Selección en 1 clic de perfiles de energía (`Rendimiento`, `Equilibrado`, `Ahorro`).
+  - 󰤨 **Red Wi-Fi:** SSID actual, dirección IP local y acceso directo a conexiones.
+  - 󰕾 **Volumen:** Deslizador maestro, mute y preajustes rápidos (25%, 50%, 75%, 100%).
+  - 󰏘 **Selector Rápido de Tema:** Cambia al instante entre 8 temas de color.
+- ✅ **8 Esquemas de Color (Oscuros y Claros):**
+  - **Oscuros:** `Obsidian` (Oficial Serpantinum), `Catppuccin Mocha`, `Cyber Emerald`, `Deep Amethyst`, `Neon Ruby`.
+  - **Claros:** `Porcelain White`, `Catppuccin Latte`, `Nord Snow Polar`.
+- ✅ **Control Total de Fondos:** Activa o desactiva la rotación de fondos (slideshow) y congela cualquier fondo como estático con 1 clic.
+- ✅ **Widgets de Escritorio:** Widgets translúcidos para monitorizar CPU/RAM/Disco NVMe/Uptime, reloj gigante, clima y música.
 - ✅ **Compatibilidad Universal:** Diseñado para funcionar en cualquier distribución Linux con KDE Plasma 6 (CachyOS, Arch Linux, Fedora, openSUSE, etc.) y en hardware híbrido (AMD + NVIDIA a 144Hz).
 
 ---
@@ -46,37 +58,35 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  [⚙]  [ ━ ] ● ● ● ● ● ● ●  [ ♫ Track Title ⏮ ▶ ⏭ ]        17:32:27       󰖙 25.4°C      [󰕾] [EN] [󰤨 Connected] [󰁹 100%] [⏻]  │
-│                                                     jueves, 15 de octubre                                     │
+│ [⚙] [ ━ ] ● ● ● ● ● ● ● [ ♫ Title ⏮ ▶ ⏭ ]   [15 oct.] [ 17:32:27 ] [󰖙 22°C]   [󰏘] [󰕾] [EN] [󰤨 Red] [󰁹 100%] [⏻] │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 1. Barra Superior Flotante (`org.serpanplasma.bar`)
 - **Extremo Izquierdo:**
-  - `[ ⚙ ]`: Botón cuadrado redondeado para abrir los ajustes y el menú de aplicaciones.
-  - `[ ━ ] ● ● ● ● ● ● ●`: Píldora de espacios de trabajo activa (cápsula expandida en tono malva/lavanda `#d0d0d0`) con 7 puntos circulares (`#1e293b`) para los demás escritorios, con animaciones fluidas y cambio interactivo por clic.
-  - `[ ♪ Titulo - Artista ⏮ ▶ ⏭ ]`: Cápsula multimedia que muestra la pista actual o *"No hay nada reprc"*, con controles directos interactivos de pista anterior, reproducción/pausa y pista siguiente.
-- **Centro:**
-  - **Reloj Digital Apilado:**
-    - Fila 1: Hora exacta en formato `HH:mm:ss` con tipografía **JetBrains Mono Nerd Font** en negrita máxima (*Black*).
-    - Fila 2: Fecha completa en español (`dddd, d 'de' MMMM`) en tono gris pizarra suave (`#94a3b8`).
-  - **Cápsula de Clima:** Icono de condición meteorológica en tiempo real (`☁`, `󰖙`, `󰖖`, etc.) y temperatura en grados Celsius proporcionados por Open-Meteo.
+  - `[ ⚙ ]`: Botón para abrir el panel de configuración y guía Serpanplasma.
+  - `[ ━ ] ● ● ● ● ● ● ●`: Píldora interactiva de 8 escritorios virtuales de KWin.
+  - `[ ♪ Titulo - Artista ⏮ ▶ ⏭ ]`: Cápsula multimedia interactiva MPRIS.
+- **Centro (Trío Simétrico Centrado):**
+  - `[ 15 de oct. ]`: Píldora de fecha que despliega el calendario mensual interactivo.
+  - `[ 17:32:27 ]`: **Reloj digital matemáticamente centrado** en la pantalla con tipografía JetBrains Mono Black.
+  - `[ 󰖙 22.1°C ]`: Píldora de clima que despliega la tarjeta de pronóstico a 4 días.
 - **Extremo Derecho:**
-  - `[ 󰕾 ]`: Control de volumen con soporte de rueda de ratón (subir/bajar) y clic para silenciar.
-  - `[ EN / ES ]`: Indicador de distribución de teclado actual.
-  - `[ 󰤨 Connected ]`: **Cápsula sólida blanca (#f8fafc)** con icono y texto en contraste oscuro (`#0f172a`), indicando el estado de red o nombre SSID.
-  - `[ 󰁹 100% ]`: **Cápsula sólida blanca (#f8fafc)** con icono dinámico de batería/carga y porcentaje.
-  - `[ ⏻ ]`: Botón circular de apagado que invoca el diálogo de cierre de sesión y apagado de Plasma.
+  - `[ 󰏘 ]`: Selector rápido de tema para alternar entre las 8 paletas oscuras y claras.
+  - `[ 󰕾 ]`: Píldora de volumen con deslizador, preajustes y mute.
+  - `[ EN / ES ]`: Indicador de teclado.
+  - `[ 󰤨 Red ]`: Píldora blanca sólida con diálogo de red e IP local.
+  - `[ 󰁹 100% ]`: Píldora blanca sólida de batería con selector de perfiles de energía.
+  - `[ ⏻ ]`: Diálogo de apagado del sistema.
 
 ### 2. Dock de Aplicaciones Inferior
 - Panel flotante centrado desacoplado del borde inferior de la pantalla.
 - Iconos directos para Terminal (`kitty`/`konsole`), Explorador (`dolphin`), Navegador web, `Discord`, `Spotify` y Ajustes del Sistema.
 - Indicadores discretos de aplicaciones en ejecución y soporte para arrastrar y fijar nuevos lanzadores.
 
-### 3. Paleta de Colores "Obsidian" & Tipografía
-- **Fondo base:** Pizarra y azul muy oscuro (`#0f172a`, `#1e293b`).
-- **Acentos:** Azul cielo brillante (`#38bdf8`) y Malva/Lavanda (`#d0d0d0`).
-- **Píldoras de estado:** Blanco puro (`#f8fafc`) con tipografía negra pizarra (`#0f172a`).
+### 3. Paletas de Color y Tipografía
+- **Obsidian:** Fondo pizarra `#0f172a`, acentos `#38bdf8`, texto `#f8fafc`.
+- **Porcelain Light:** Fondo `#f8fafc`, acentos `#0284c7`, texto `#0f172a`.
 - **Tipografía:** `JetBrains Mono Nerd Font` (SemiBold / Bold / Black).
 
 ---
