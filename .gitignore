@@ -21,3 +21,5 @@ secrets/
 /tmp/
 /build/
 .cache/
+__pycache__/
+*.pyc

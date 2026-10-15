@@ -49,6 +49,10 @@ ApplicationWindow {
     property int wallpaperInterval: 900
     property bool wallpaperSlideshow: true
     property bool desktopWidgetsEnabled: false
+    property bool widgetHwEnabled: true
+    property bool widgetClockEnabled: true
+    property bool widgetWeatherEnabled: true
+    property bool widgetMusicEnabled: true
     property string activeTheme: "Serpanplasma-Obsidian"
 
     function showToast(msg) {
@@ -115,6 +119,12 @@ ApplicationWindow {
                     if (d.wallpaper_interval !== undefined) window.wallpaperInterval = d.wallpaper_interval;
                     if (d.wallpaper_slideshow !== undefined) window.wallpaperSlideshow = d.wallpaper_slideshow;
                     if (d.desktop_widgets !== undefined) window.desktopWidgetsEnabled = d.desktop_widgets;
+                    if (d.widgets !== undefined) {
+                        if (d.widgets.hw !== undefined && d.widgets.hw.enabled !== undefined) window.widgetHwEnabled = d.widgets.hw.enabled;
+                        if (d.widgets.clock !== undefined && d.widgets.clock.enabled !== undefined) window.widgetClockEnabled = d.widgets.clock.enabled;
+                        if (d.widgets.weather !== undefined && d.widgets.weather.enabled !== undefined) window.widgetWeatherEnabled = d.widgets.weather.enabled;
+                        if (d.widgets.music !== undefined && d.widgets.music.enabled !== undefined) window.widgetMusicEnabled = d.widgets.music.enabled;
+                    }
                     if (d.color_scheme !== undefined) window.activeTheme = d.color_scheme;
                 } catch(e) {}
             }
@@ -1894,7 +1904,9 @@ ApplicationWindow {
 
                                 Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
 
-                                Text { text: "Componentes Incluidos:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+                                Text { text: "💡 Puedes arrastrar con el ratón cualquier widget libremente por la pantalla. Su posición se guardará automáticamente."; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#38bdf8" }
+
+                                Text { text: "Activar / Desactivar Widgets Individualmente:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#cbd5e1" }
 
                                 GridLayout {
                                     Layout.fillWidth: true
@@ -1902,51 +1914,99 @@ ApplicationWindow {
                                     rowSpacing: 10
                                     columnSpacing: 10
 
+                                    // 1. Hardware
                                     Rectangle {
-                                        Layout.fillWidth: true; height: 70; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
-                                        ColumnLayout {
-                                            anchors.fill: parent; anchors.margins: 10; spacing: 4
-                                            RowLayout {
-                                                Text { text: "󰍛"; font.pixelSize: 14; color: "#38bdf8" }
-                                                Text { text: "Monitor de Hardware"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                        Layout.fillWidth: true; height: 74; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
+                                        RowLayout {
+                                            anchors.fill: parent; anchors.margins: 10; spacing: 8
+                                            ColumnLayout {
+                                                Layout.fillWidth: true; spacing: 3
+                                                RowLayout {
+                                                    Text { text: "󰍛"; font.pixelSize: 14; color: "#38bdf8" }
+                                                    Text { text: "Monitor de Hardware"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                                }
+                                                Text { text: "CPU, RAM, SSD y Uptime en tiempo real"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
                                             }
-                                            Text { text: "CPU %, RAM usada/total, SSD libre y tiempo encendido (uptime)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
+                                            Switch {
+                                                checked: window.widgetHwEnabled
+                                                onToggled: {
+                                                    window.widgetHwEnabled = checked;
+                                                    window.sendCmd("set_widget_enabled", checked ? "true" : "false", "hw");
+                                                    window.showToast(checked ? "Monitor de Hardware activado" : "Monitor de Hardware desactivado");
+                                                }
+                                            }
                                         }
                                     }
 
+                                    // 2. Clock
                                     Rectangle {
-                                        Layout.fillWidth: true; height: 70; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
-                                        ColumnLayout {
-                                            anchors.fill: parent; anchors.margins: 10; spacing: 4
-                                            RowLayout {
-                                                Text { text: "󰥔"; font.pixelSize: 14; color: "#38bdf8" }
-                                                Text { text: "Reloj Gigante & Calendario"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                        Layout.fillWidth: true; height: 74; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
+                                        RowLayout {
+                                            anchors.fill: parent; anchors.margins: 10; spacing: 8
+                                            ColumnLayout {
+                                                Layout.fillWidth: true; spacing: 3
+                                                RowLayout {
+                                                    Text { text: "󰥔"; font.pixelSize: 14; color: "#38bdf8" }
+                                                    Text { text: "Reloj Gigante & Fecha"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                                }
+                                                Text { text: "Hora tipográfica grande y fecha en español"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
                                             }
-                                            Text { text: "Hora tipográfica y fecha en español en tiempo real"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
+                                            Switch {
+                                                checked: window.widgetClockEnabled
+                                                onToggled: {
+                                                    window.widgetClockEnabled = checked;
+                                                    window.sendCmd("set_widget_enabled", checked ? "true" : "false", "clock");
+                                                    window.showToast(checked ? "Reloj activado" : "Reloj desactivado");
+                                                }
+                                            }
                                         }
                                     }
 
+                                    // 3. Weather
                                     Rectangle {
-                                        Layout.fillWidth: true; height: 70; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
-                                        ColumnLayout {
-                                            anchors.fill: parent; anchors.margins: 10; spacing: 4
-                                            RowLayout {
-                                                Text { text: "󰖙"; font.pixelSize: 14; color: "#38bdf8" }
-                                                Text { text: "Tarjeta Climatológica"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                        Layout.fillWidth: true; height: 74; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
+                                        RowLayout {
+                                            anchors.fill: parent; anchors.margins: 10; spacing: 8
+                                            ColumnLayout {
+                                                Layout.fillWidth: true; spacing: 3
+                                                RowLayout {
+                                                    Text { text: "󰖙"; font.pixelSize: 14; color: "#38bdf8" }
+                                                    Text { text: "Tarjeta Climatológica"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                                }
+                                                Text { text: "Temperatura, viento, humedad y sensación"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
                                             }
-                                            Text { text: "Temperatura, sensación térmica, viento, humedad y pronóstico a 4 días"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
+                                            Switch {
+                                                checked: window.widgetWeatherEnabled
+                                                onToggled: {
+                                                    window.widgetWeatherEnabled = checked;
+                                                    window.sendCmd("set_widget_enabled", checked ? "true" : "false", "weather");
+                                                    window.showToast(checked ? "Widget de Clima activado" : "Widget de Clima desactivado");
+                                                }
+                                            }
                                         }
                                     }
 
+                                    // 4. Music
                                     Rectangle {
-                                        Layout.fillWidth: true; height: 70; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
-                                        ColumnLayout {
-                                            anchors.fill: parent; anchors.margins: 10; spacing: 4
-                                            RowLayout {
-                                                Text { text: "󰎆"; font.pixelSize: 14; color: "#38bdf8" }
-                                                Text { text: "Reproductor MPRIS"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                        Layout.fillWidth: true; height: 74; radius: 10; color: "#060913"; border.color: "#1e293b"; border.width: 1
+                                        RowLayout {
+                                            anchors.fill: parent; anchors.margins: 10; spacing: 8
+                                            ColumnLayout {
+                                                Layout.fillWidth: true; spacing: 3
+                                                RowLayout {
+                                                    Text { text: "󰎆"; font.pixelSize: 14; color: "#38bdf8" }
+                                                    Text { text: "Reproductor MPRIS"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
+                                                }
+                                                Text { text: "Título, artista y botones multimedia"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
                                             }
-                                            Text { text: "Título, artista y botones de reproducción para Spotify, navegador, etc."; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8" }
+                                            Switch {
+                                                checked: window.widgetMusicEnabled
+                                                onToggled: {
+                                                    window.widgetMusicEnabled = checked;
+                                                    window.sendCmd("set_widget_enabled", checked ? "true" : "false", "music");
+                                                    window.showToast(checked ? "Reproductor MPRIS activado" : "Reproductor MPRIS desactivado");
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1955,13 +2015,12 @@ ApplicationWindow {
                                     spacing: 12
                                     Rectangle {
                                         Layout.fillWidth: true; height: 36; radius: 8; color: "#38bdf8"
-                                        Text { anchors.centerIn: parent; text: "󰑓 Recargar / Reiniciar Widgets"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#0f172a" }
+                                        Text { anchors.centerIn: parent; text: "󰑓 Restablecer Posiciones por Defecto"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#0f172a" }
                                         MouseArea {
                                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                             onClicked: {
-                                                window.sendCmd("toggle_desktop_widgets", "true");
-                                                window.desktopWidgetsEnabled = true;
-                                                window.showToast("Reiniciando widgets de escritorio...");
+                                                window.sendCmd("reset_widget_pos");
+                                                window.showToast("Posiciones de widgets restablecidas");
                                             }
                                         }
                                     }

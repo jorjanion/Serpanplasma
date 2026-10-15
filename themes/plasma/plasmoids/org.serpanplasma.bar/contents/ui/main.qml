@@ -30,6 +30,7 @@ PlasmoidItem {
         property string weatherIcon: "󰖙"
         property string weatherDesc: "Despejado"
         property var weatherForecast: []
+        property int selectedForecastIdx: 0
         property string batteryStr: "100%"
         property int batteryPct: 100
         property bool batteryCharging: false
@@ -37,11 +38,25 @@ PlasmoidItem {
         property string networkSsid: "Connected"
         property string networkIcon: "󰤨"
         property string localIp: "127.0.0.1"
+        property string publicIp: ""
+        property string netRxRate: "0 B/s"
+        property string netTxRate: "0 B/s"
         property int volume: 75
         property string volumeIcon: "󰕾"
         property bool volumeMuted: false
+        property var audioDevices: []
+        property string defaultSink: ""
         property string lang: "ES"
         property string powerProfile: "performance"
+
+        // Dynamic Color Scheme Palettes
+        property string themeBg: "#0f172a"
+        property string themeCard: "#1e293b"
+        property string themeAccent: "#38bdf8"
+        property string themeFg: "#f8fafc"
+        property string themeMuted: "#94a3b8"
+        property string themeBorder: "#334155"
+        property bool isLightTheme: false
 
         // Module visibility & Style properties
         property bool barDistinctPills: true
@@ -114,9 +129,14 @@ PlasmoidItem {
                         if (data.network_ssid !== undefined) barContainer.networkSsid = data.network_ssid;
                         if (data.network_icon !== undefined) barContainer.networkIcon = data.network_icon;
                         if (data.local_ip !== undefined) barContainer.localIp = data.local_ip;
+                        if (data.public_ip !== undefined) barContainer.publicIp = data.public_ip;
+                        if (data.net_rx_rate !== undefined) barContainer.netRxRate = data.net_rx_rate;
+                        if (data.net_tx_rate !== undefined) barContainer.netTxRate = data.net_tx_rate;
                         if (data.volume !== undefined) barContainer.volume = data.volume;
                         if (data.volume_icon !== undefined) barContainer.volumeIcon = data.volume_icon;
                         if (data.volume_muted !== undefined) barContainer.volumeMuted = data.volume_muted;
+                        if (data.audio_devices !== undefined) barContainer.audioDevices = data.audio_devices;
+                        if (data.default_sink !== undefined) barContainer.defaultSink = data.default_sink;
                         if (data.lang !== undefined) barContainer.lang = data.lang;
                         if (data.power_profile !== undefined) barContainer.powerProfile = data.power_profile;
                         if (data.bar_distinct_pills !== undefined) barContainer.barDistinctPills = data.bar_distinct_pills;
@@ -129,6 +149,15 @@ PlasmoidItem {
                         if (data.bar_mod_network !== undefined) barContainer.modNetwork = data.bar_mod_network;
                         if (data.bar_mod_battery !== undefined) barContainer.modBattery = data.bar_mod_battery;
                         if (data.bar_mod_power !== undefined) barContainer.modPower = data.bar_mod_power;
+
+                        // Theme palettes
+                        if (data.theme_bg !== undefined) barContainer.themeBg = data.theme_bg;
+                        if (data.theme_card !== undefined) barContainer.themeCard = data.theme_card;
+                        if (data.theme_accent !== undefined) barContainer.themeAccent = data.theme_accent;
+                        if (data.theme_fg !== undefined) barContainer.themeFg = data.theme_fg;
+                        if (data.theme_muted !== undefined) barContainer.themeMuted = data.theme_muted;
+                        if (data.theme_border !== undefined) barContainer.themeBorder = data.theme_border;
+                        if (data.is_light !== undefined) barContainer.isLightTheme = data.is_light;
                     } catch (e) {}
                 }
             };
@@ -156,6 +185,49 @@ PlasmoidItem {
             setTimeout(fetchStatus, 80);
         }
 
+        function setThemeDirect(scheme) {
+            if (scheme === "Serpanplasma-Obsidian") {
+                themeBg = "#0f172a"; themeCard = "#1e293b"; themeAccent = "#38bdf8"; themeFg = "#f8fafc"; themeMuted = "#94a3b8"; themeBorder = "#334155"; isLightTheme = false;
+            } else if (scheme === "Serpanplasma-Mocha") {
+                themeBg = "#1e1e2e"; themeCard = "#313244"; themeAccent = "#89b4fa"; themeFg = "#cdd6f4"; themeMuted = "#a6adc8"; themeBorder = "#45475a"; isLightTheme = false;
+            } else if (scheme === "Serpanplasma-Emerald") {
+                themeBg = "#064e3b"; themeCard = "#065f46"; themeAccent = "#34d399"; themeFg = "#ecfdf5"; themeMuted = "#6ee7b7"; themeBorder = "#047857"; isLightTheme = false;
+            } else if (scheme === "Serpanplasma-Amethyst") {
+                themeBg = "#1e1b4b"; themeCard = "#312e81"; themeAccent = "#a855f7"; themeFg = "#faf5ff"; themeMuted = "#c084fc"; themeBorder = "#4338ca"; isLightTheme = false;
+            } else if (scheme === "Serpanplasma-Ruby") {
+                themeBg = "#450a0a"; themeCard = "#7f1d1d"; themeAccent = "#f43f5e"; themeFg = "#fff1f2"; themeMuted = "#fda4af"; themeBorder = "#991b1b"; isLightTheme = false;
+            } else if (scheme === "Serpanplasma-Porcelain") {
+                themeBg = "#ffffff"; themeCard = "#f1f5f9"; themeAccent = "#0284c7"; themeFg = "#0f172a"; themeMuted = "#64748b"; themeBorder = "#cbd5e1"; isLightTheme = true;
+            } else if (scheme === "Serpanplasma-Latte") {
+                themeBg = "#eff1f5"; themeCard = "#e6e9ef"; themeAccent = "#1e66f5"; themeFg = "#4c4f69"; themeMuted = "#7c7f93"; themeBorder = "#ccd0da"; isLightTheme = true;
+            } else if (scheme === "Serpanplasma-NordSnow") {
+                themeBg = "#eceff4"; themeCard = "#e5e9f0"; themeAccent = "#5e81ac"; themeFg = "#2e3440"; themeMuted = "#4c566a"; themeBorder = "#d8dee9"; isLightTheme = true;
+            }
+            sendCmd("apply_colorscheme", scheme);
+        }
+
+        function stepMonth(delta) {
+            calAnim.stop();
+            calGridContainer.opacity = 0;
+            calGridContainer.x = delta > 0 ? 18 : -18;
+            if (delta > 0) {
+                if (barContainer.calMonth === 11) {
+                    barContainer.calMonth = 0;
+                    barContainer.calYear += 1;
+                } else {
+                    barContainer.calMonth += 1;
+                }
+            } else {
+                if (barContainer.calMonth === 0) {
+                    barContainer.calMonth = 11;
+                    barContainer.calYear -= 1;
+                } else {
+                    barContainer.calMonth -= 1;
+                }
+            }
+            calAnim.start();
+        }
+
         Component.onCompleted: {
             updateDateTime();
             barContainer.calMonth = barContainer.todayMonth;
@@ -164,13 +236,13 @@ PlasmoidItem {
         }
 
         // ==================== UNIFIED BAR BACKGROUND ====================
-        // When not in distinct pills mode, this unified dark translucent bar spans edge-to-edge across the screen!
+        // When not in distinct pills mode, this unified translucent bar spans edge-to-edge across the screen!
         Rectangle {
             anchors.fill: parent
             visible: !barContainer.barDistinctPills
-            color: "#0f172a"
-            opacity: 0.92
-            border.color: "#1e293b"
+            color: barContainer.themeBg
+            opacity: 0.94
+            border.color: barContainer.themeBorder
             border.width: 1
         }
 
@@ -197,8 +269,8 @@ PlasmoidItem {
                     width: 30
                     height: 30
                     radius: 9
-                    color: gearMouse.pressed ? "#475569" : (gearMouse.containsMouse ? "#334155" : "#1e293b")
-                    border.color: barContainer.barDistinctPills ? "#334155" : "transparent"
+                    color: gearMouse.pressed ? barContainer.themeBorder : (gearMouse.containsMouse ? barContainer.themeCard : (barContainer.barDistinctPills ? barContainer.themeCard : "transparent"))
+                    border.color: barContainer.barDistinctPills ? barContainer.themeBorder : "transparent"
                     border.width: barContainer.barDistinctPills ? 1 : 0
                     anchors.verticalCenter: parent.verticalCenter
                     scale: gearMouse.pressed ? 0.92 : (gearMouse.containsMouse ? 1.05 : 1.0)
@@ -210,7 +282,7 @@ PlasmoidItem {
                         text: "󰒓"
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 15
-                        color: "#f8fafc"
+                        color: gearMouse.containsMouse ? barContainer.themeAccent : barContainer.themeFg
                     }
 
                     MouseArea {
@@ -228,8 +300,8 @@ PlasmoidItem {
                     visible: barContainer.modWorkspaces
                     height: 30
                     radius: 10
-                    color: barContainer.barDistinctPills ? "#1e293b" : "#141e33"
-                    border.color: barContainer.barDistinctPills ? "#334155" : "transparent"
+                    color: barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33")
+                    border.color: barContainer.barDistinctPills ? barContainer.themeBorder : "transparent"
                     border.width: barContainer.barDistinctPills ? 1 : 0
                     anchors.verticalCenter: parent.verticalCenter
                     implicitWidth: wsRow.implicitWidth + 16
@@ -249,7 +321,7 @@ PlasmoidItem {
                                 height: 16
                                 width: isActive ? 34 : 14
                                 radius: 8
-                                color: isActive ? "#38bdf8" : (wsMouse.containsMouse ? "#64748b" : "#334155")
+                                color: isActive ? barContainer.themeAccent : (wsMouse.containsMouse ? barContainer.themeMuted : (barContainer.isLightTheme ? "#cbd5e1" : "#334155"))
                                 anchors.verticalCenter: parent.verticalCenter
 
                                 Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
@@ -278,8 +350,8 @@ PlasmoidItem {
                     visible: barContainer.modMedia
                     height: 30
                     radius: 10
-                    color: barContainer.barDistinctPills ? "#1e293b" : "#141e33"
-                    border.color: barContainer.barDistinctPills ? "#334155" : "transparent"
+                    color: barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33")
+                    border.color: barContainer.barDistinctPills ? barContainer.themeBorder : "transparent"
                     border.width: barContainer.barDistinctPills ? 1 : 0
                     anchors.verticalCenter: parent.verticalCenter
                     implicitWidth: mediaContentRow.implicitWidth + 20
@@ -293,7 +365,7 @@ PlasmoidItem {
                             text: "󰎈"
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 13
-                            color: "#38bdf8"
+                            color: barContainer.themeAccent
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -301,85 +373,68 @@ PlasmoidItem {
                             text: barContainer.mediaTitle
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 11
-                            font.weight: Font.DemiBold
-                            color: "#f8fafc"
+                            font.weight: Font.Bold
+                            color: barContainer.themeFg
                             elide: Text.ElideRight
                             maximumLineCount: 1
-                            width: Math.min(implicitWidth, 140)
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
-                        // Prev
-                        Text {
-                            text: "󰒮"
-                            font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 11
-                            color: prevMouse.containsMouse ? "#ffffff" : "#94a3b8"
+                        // Compact controls
+                        Row {
+                            spacing: 4
                             anchors.verticalCenter: parent.verticalCenter
-                            scale: prevMouse.pressed ? 0.88 : 1.0
-                            Behavior on color { ColorAnimation { duration: 150 } }
 
-                            MouseArea {
-                                id: prevMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: barContainer.sendCmd("previous")
+                            Text {
+                                text: "󰒮"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: barContainer.themeMuted
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: barContainer.sendCmd("previous")
+                                }
                             }
-                        }
 
-                        // Play/Pause
-                        Text {
-                            text: barContainer.mediaPlaying ? "󰏤" : "󰐊"
-                            font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 12
-                            color: playMouse.containsMouse ? "#ffffff" : "#f8fafc"
-                            anchors.verticalCenter: parent.verticalCenter
-                            scale: playMouse.pressed ? 0.88 : 1.0
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            MouseArea {
-                                id: playMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: barContainer.sendCmd("play-pause")
+                            Text {
+                                text: barContainer.mediaPlaying ? "󰏤" : "󰐊"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 12
+                                color: barContainer.themeAccent
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: barContainer.sendCmd("play-pause")
+                                }
                             }
-                        }
 
-                        // Next
-                        Text {
-                            text: "󰒭"
-                            font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 11
-                            color: nextMouse.containsMouse ? "#ffffff" : "#94a3b8"
-                            anchors.verticalCenter: parent.verticalCenter
-                            scale: nextMouse.pressed ? 0.88 : 1.0
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            MouseArea {
-                                id: nextMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: barContainer.sendCmd("next")
+                            Text {
+                                text: "󰒭"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: barContainer.themeMuted
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: barContainer.sendCmd("next")
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // ==================== CENTER GROUP (STRICTLY CENTERED TIME + SYMMETRICAL TRIO) ====================
-            // Center Time Pill: Anchored directly to parent.horizontalCenter ensuring the TIME is mathematically centered!
+            // ==================== CENTER GROUP ====================
+            // Center Time Pill
             Rectangle {
                 id: timePill
                 visible: barContainer.modClock
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.centerIn: parent
                 height: 30
                 radius: 10
-                color: timeMouse.containsMouse ? "#334155" : (barContainer.barDistinctPills ? "#1e293b" : "#141e33")
-                border.color: (timeMouse.containsMouse || calendarDialog.visible) ? "#38bdf8" : (barContainer.barDistinctPills ? "#334155" : "transparent")
+                color: timeMouse.containsMouse ? barContainer.themeCard : (barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33"))
+                border.color: (timeMouse.containsMouse || calendarDialog.visible) ? barContainer.themeAccent : (barContainer.barDistinctPills ? barContainer.themeBorder : "transparent")
                 border.width: 1
                 implicitWidth: timeText.implicitWidth + 24
                 scale: timeMouse.pressed ? 0.94 : 1.0
@@ -390,9 +445,9 @@ PlasmoidItem {
                     anchors.centerIn: parent
                     text: barContainer.currentTime
                     font.family: "JetBrainsMono Nerd Font"
-                    font.pixelSize: 13
+                    font.pixelSize: 12
                     font.weight: Font.Black
-                    color: "#ffffff"
+                    color: barContainer.themeFg
                 }
 
                 MouseArea {
@@ -415,8 +470,8 @@ PlasmoidItem {
                 anchors.verticalCenter: parent.verticalCenter
                 height: 30
                 radius: 10
-                color: dateMouse.containsMouse ? "#334155" : (barContainer.barDistinctPills ? "#1e293b" : "#141e33")
-                border.color: (dateMouse.containsMouse || calendarDialog.visible) ? "#38bdf8" : (barContainer.barDistinctPills ? "#334155" : "transparent")
+                color: dateMouse.containsMouse ? barContainer.themeCard : (barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33"))
+                border.color: (dateMouse.containsMouse || calendarDialog.visible) ? barContainer.themeAccent : (barContainer.barDistinctPills ? barContainer.themeBorder : "transparent")
                 border.width: 1
                 implicitWidth: dateRow.implicitWidth + 20
                 scale: dateMouse.pressed ? 0.94 : 1.0
@@ -431,7 +486,7 @@ PlasmoidItem {
                         text: "󰸗"
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 13
-                        color: "#38bdf8"
+                        color: barContainer.themeAccent
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
@@ -440,7 +495,7 @@ PlasmoidItem {
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 10
                         font.weight: Font.Bold
-                        color: "#cbd5e1"
+                        color: barContainer.themeFg
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -465,8 +520,8 @@ PlasmoidItem {
                 anchors.verticalCenter: parent.verticalCenter
                 height: 30
                 radius: 10
-                color: weatherMouse.containsMouse ? "#334155" : (barContainer.barDistinctPills ? "#1e293b" : "#141e33")
-                border.color: (weatherMouse.containsMouse || weatherDialog.visible) ? "#38bdf8" : (barContainer.barDistinctPills ? "#334155" : "transparent")
+                color: weatherMouse.containsMouse ? barContainer.themeCard : (barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33"))
+                border.color: (weatherMouse.containsMouse || weatherDialog.visible) ? barContainer.themeAccent : (barContainer.barDistinctPills ? barContainer.themeBorder : "transparent")
                 border.width: 1
                 implicitWidth: weatherRow.implicitWidth + 20
                 scale: weatherMouse.pressed ? 0.94 : 1.0
@@ -481,7 +536,7 @@ PlasmoidItem {
                         text: barContainer.weatherIcon
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 14
-                        color: "#ffffff"
+                        color: barContainer.themeAccent
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
@@ -490,7 +545,7 @@ PlasmoidItem {
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 11
                         font.weight: Font.Black
-                        color: "#f8fafc"
+                        color: barContainer.themeFg
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -519,8 +574,8 @@ PlasmoidItem {
                     width: 32
                     height: 28
                     radius: 8
-                    color: themeMouse.containsMouse ? "#334155" : (barContainer.barDistinctPills ? "#1e293b" : "#141e33")
-                    border.color: (themeMouse.containsMouse || themeDialog.visible) ? "#38bdf8" : (barContainer.barDistinctPills ? "#334155" : "transparent")
+                    color: themeMouse.containsMouse ? barContainer.themeCard : (barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33"))
+                    border.color: (themeMouse.containsMouse || themeDialog.visible) ? barContainer.themeAccent : (barContainer.barDistinctPills ? barContainer.themeBorder : "transparent")
                     border.width: 1
                     anchors.verticalCenter: parent.verticalCenter
                     scale: themeMouse.pressed ? 0.92 : 1.0
@@ -531,7 +586,7 @@ PlasmoidItem {
                         text: "󰏘"
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 14
-                        color: "#38bdf8"
+                        color: barContainer.themeAccent
                     }
 
                     MouseArea {
@@ -552,8 +607,8 @@ PlasmoidItem {
                     width: 32
                     height: 28
                     radius: 8
-                    color: volMouse.containsMouse ? "#334155" : (barContainer.barDistinctPills ? "#1e293b" : "#141e33")
-                    border.color: (volMouse.containsMouse || volumeDialog.visible) ? "#38bdf8" : (barContainer.barDistinctPills ? "#334155" : "transparent")
+                    color: volMouse.containsMouse ? barContainer.themeCard : (barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33"))
+                    border.color: (volMouse.containsMouse || volumeDialog.visible) ? barContainer.themeAccent : (barContainer.barDistinctPills ? barContainer.themeBorder : "transparent")
                     border.width: 1
                     anchors.verticalCenter: parent.verticalCenter
                     scale: volMouse.pressed ? 0.92 : 1.0
@@ -564,7 +619,7 @@ PlasmoidItem {
                         text: barContainer.volumeIcon
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 14
-                        color: barContainer.volumeMuted ? "#ef4444" : "#f8fafc"
+                        color: barContainer.volumeMuted ? "#ef4444" : barContainer.themeFg
                     }
 
                     MouseArea {
@@ -585,15 +640,18 @@ PlasmoidItem {
                     }
                 }
 
-                // Language
+                // Language / Keyboard Layout Pill (CLICKABLE TO TOGGLE ES / US)
                 Rectangle {
+                    id: layoutPill
                     width: 34
                     height: 28
                     radius: 8
-                    color: barContainer.barDistinctPills ? "#1e293b" : "#141e33"
-                    border.color: barContainer.barDistinctPills ? "#334155" : "transparent"
-                    border.width: barContainer.barDistinctPills ? 1 : 0
+                    color: layoutMouse.containsMouse ? barContainer.themeCard : (barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33"))
+                    border.color: layoutMouse.containsMouse ? barContainer.themeAccent : (barContainer.barDistinctPills ? barContainer.themeBorder : "transparent")
+                    border.width: 1
                     anchors.verticalCenter: parent.verticalCenter
+                    scale: layoutMouse.pressed ? 0.92 : 1.0
+                    Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
@@ -601,17 +659,30 @@ PlasmoidItem {
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 11
                         font.weight: Font.Bold
-                        color: "#f8fafc"
+                        color: layoutMouse.containsMouse ? barContainer.themeAccent : barContainer.themeFg
+                    }
+
+                    MouseArea {
+                        id: layoutMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            barContainer.lang = (barContainer.lang === "ES") ? "US" : "ES";
+                            barContainer.sendCmd("toggle_layout");
+                        }
                     }
                 }
 
-                // Network (SOLID WHITE CAPSULE)
+                // Network (SOLID WHITE CAPSULE IN DARK / SOLID ACCENT IN LIGHT)
                 Rectangle {
                     id: netPill
                     visible: barContainer.modNetwork
                     height: 28
                     radius: 10
-                    color: netMouse.containsMouse ? "#e2e8f0" : "#f8fafc"
+                    color: netMouse.containsMouse ? (barContainer.isLightTheme ? barContainer.themeBorder : "#e2e8f0") : (barContainer.isLightTheme ? barContainer.themeCard : "#f8fafc")
+                    border.color: barContainer.isLightTheme ? barContainer.themeBorder : "transparent"
+                    border.width: barContainer.isLightTheme ? 1 : 0
                     anchors.verticalCenter: parent.verticalCenter
                     implicitWidth: netRow.implicitWidth + 20
                     scale: netMouse.pressed ? 0.94 : 1.0
@@ -625,7 +696,7 @@ PlasmoidItem {
                             text: barContainer.networkIcon
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 13
-                            color: "#0f172a"
+                            color: barContainer.isLightTheme ? barContainer.themeFg : "#0f172a"
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -634,7 +705,7 @@ PlasmoidItem {
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 11
                             font.weight: Font.Bold
-                            color: "#0f172a"
+                            color: barContainer.isLightTheme ? barContainer.themeFg : "#0f172a"
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -650,13 +721,15 @@ PlasmoidItem {
                     }
                 }
 
-                // Battery (SOLID WHITE CAPSULE)
+                // Battery (SOLID WHITE CAPSULE IN DARK / SOLID ACCENT IN LIGHT)
                 Rectangle {
                     id: batPill
                     visible: barContainer.modBattery
                     height: 28
                     radius: 10
-                    color: batMouse.containsMouse ? "#e2e8f0" : "#f8fafc"
+                    color: batMouse.containsMouse ? (barContainer.isLightTheme ? barContainer.themeBorder : "#e2e8f0") : (barContainer.isLightTheme ? barContainer.themeCard : "#f8fafc")
+                    border.color: barContainer.isLightTheme ? barContainer.themeBorder : "transparent"
+                    border.width: barContainer.isLightTheme ? 1 : 0
                     anchors.verticalCenter: parent.verticalCenter
                     implicitWidth: batRow.implicitWidth + 20
                     scale: batMouse.pressed ? 0.94 : 1.0
@@ -670,7 +743,7 @@ PlasmoidItem {
                             text: barContainer.batteryIcon
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 14
-                            color: "#0f172a"
+                            color: barContainer.isLightTheme ? barContainer.themeFg : "#0f172a"
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -679,7 +752,7 @@ PlasmoidItem {
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 11
                             font.weight: Font.Bold
-                            color: "#0f172a"
+                            color: barContainer.isLightTheme ? barContainer.themeFg : "#0f172a"
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -695,16 +768,16 @@ PlasmoidItem {
                     }
                 }
 
-                // Power button
+                // Power button (CLICK OPENS POWER ACTION MENU)
                 Rectangle {
                     id: powerBtn
                     visible: barContainer.modPower
                     width: 28
                     height: 28
                     radius: 14
-                    color: powerMouse.containsMouse ? "#ef4444" : (barContainer.barDistinctPills ? "#1e293b" : "#141e33")
-                    border.color: barContainer.barDistinctPills ? "#334155" : "transparent"
-                    border.width: barContainer.barDistinctPills ? 1 : 0
+                    color: (powerMouse.containsMouse || powerDialog.visible) ? "#ef4444" : (barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33"))
+                    border.color: (powerMouse.containsMouse || powerDialog.visible) ? "#ef4444" : (barContainer.barDistinctPills ? barContainer.themeBorder : "transparent")
+                    border.width: 1
                     anchors.verticalCenter: parent.verticalCenter
                     scale: powerMouse.pressed ? 0.9 : 1.0
                     Behavior on scale { NumberAnimation { duration: 150 } }
@@ -715,7 +788,7 @@ PlasmoidItem {
                         text: "⏻"
                         font.family: "JetBrainsMono Nerd Font"
                         font.pixelSize: 12
-                        color: "#f8fafc"
+                        color: (powerMouse.containsMouse || powerDialog.visible) ? "#ffffff" : barContainer.themeFg
                     }
 
                     MouseArea {
@@ -723,7 +796,7 @@ PlasmoidItem {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: barContainer.sendCmd("power")
+                        onClicked: powerDialog.visible = !powerDialog.visible
                     }
                 }
             }
@@ -733,7 +806,7 @@ PlasmoidItem {
         // ==================== DROPDOWN POPUP DIALOGS (WAYLAND NATIVE) ============
         // =========================================================================
 
-        // 1. WEATHER DROPDOWN DIALOG
+        // 1. WEATHER DROPDOWN DIALOG (INTERACTIVE & SIZED PERFECTLY)
         PlasmaCore.Dialog {
             id: weatherDialog
             visualParent: weatherPill
@@ -742,18 +815,20 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 320
-                implicitHeight: weatherCol.implicitHeight + 28
-                color: "#0f172a"
+                width: 340
+                implicitWidth: 340
+                height: 350
+                implicitHeight: 350
+                color: barContainer.themeBg
                 radius: 14
-                border.color: "#38bdf8"
+                border.color: barContainer.themeAccent
                 border.width: 1
 
                 ColumnLayout {
                     id: weatherCol
                     anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 12
+                    anchors.margins: 14
+                    spacing: 10
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -762,14 +837,14 @@ PlasmoidItem {
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 12
                             font.weight: Font.Bold
-                            color: "#38bdf8"
+                            color: barContainer.themeAccent
                         }
                         Item { Layout.fillWidth: true }
                         Text {
                             text: "󰑐"
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 14
-                            color: "#94a3b8"
+                            color: barContainer.themeMuted
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
@@ -778,61 +853,70 @@ PlasmoidItem {
                         }
                     }
 
+                    // Main Weather Info (Dynamically reflects selected forecast day or current)
                     RowLayout {
                         spacing: 14
                         Text {
-                            text: barContainer.weatherIcon
+                            text: (barContainer.selectedForecastIdx > 0 && barContainer.weatherForecast.length > barContainer.selectedForecastIdx)
+                                  ? barContainer.weatherForecast[barContainer.selectedForecastIdx].icon
+                                  : barContainer.weatherIcon
                             font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 36
-                            color: "#ffffff"
+                            font.pixelSize: 34
+                            color: barContainer.themeAccent
                         }
                         ColumnLayout {
                             spacing: 0
                             Text {
-                                text: barContainer.temp
+                                text: (barContainer.selectedForecastIdx > 0 && barContainer.weatherForecast.length > barContainer.selectedForecastIdx)
+                                      ? (barContainer.weatherForecast[barContainer.selectedForecastIdx].max + " / " + barContainer.weatherForecast[barContainer.selectedForecastIdx].min)
+                                      : barContainer.temp
                                 font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 24
+                                font.pixelSize: 22
                                 font.weight: Font.Black
-                                color: "#f8fafc"
+                                color: barContainer.themeFg
                             }
                             Text {
-                                text: barContainer.weatherDesc
+                                text: (barContainer.selectedForecastIdx > 0 && barContainer.weatherForecast.length > barContainer.selectedForecastIdx)
+                                      ? ("Pronóstico: " + barContainer.weatherForecast[barContainer.selectedForecastIdx].day)
+                                      : barContainer.weatherDesc
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 11
-                                color: "#94a3b8"
+                                color: barContainer.themeMuted
                             }
                         }
                     }
 
-                    Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
 
+                    // Weather details row
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Text { text: "Sensación"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#64748b" }
-                            Text { text: barContainer.weatherFeelsLike; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#cbd5e1" }
+                            Text { text: "Sensación"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted }
+                            Text { text: barContainer.weatherFeelsLike; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: barContainer.themeFg }
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Text { text: "Humedad"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#64748b" }
-                            Text { text: barContainer.weatherHumidity + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#cbd5e1" }
+                            Text { text: "Humedad"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted }
+                            Text { text: barContainer.weatherHumidity + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: barContainer.themeFg }
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Text { text: "Viento"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#64748b" }
-                            Text { text: barContainer.weatherWind; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#cbd5e1" }
+                            Text { text: "Viento"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: barContainer.themeMuted }
+                            Text { text: barContainer.weatherWind; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: barContainer.themeFg }
                         }
                     }
 
-                    Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
 
-                    Text { text: "Pronóstico Próximos Días"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#94a3b8" }
+                    Text { text: "Pronóstico Próximos Días (Haz clic en un día)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
 
+                    // Forecast cards with active clickable buttons!
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
@@ -840,18 +924,50 @@ PlasmoidItem {
                             model: barContainer.weatherForecast
                             delegate: Rectangle {
                                 Layout.fillWidth: true
-                                height: 60
+                                height: 68
                                 radius: 8
-                                color: "#1e293b"
-                                border.color: "#334155"
-                                border.width: 1
+                                color: (barContainer.selectedForecastIdx === index) ? barContainer.themeCard : (barContainer.isLightTheme ? "#f1f5f9" : "#1e293b")
+                                border.color: (barContainer.selectedForecastIdx === index) ? barContainer.themeAccent : barContainer.themeBorder
+                                border.width: (barContainer.selectedForecastIdx === index) ? 2 : 1
+                                scale: dayClickArea.pressed ? 0.94 : (dayClickArea.containsMouse ? 1.03 : 1.0)
+                                Behavior on scale { NumberAnimation { duration: 150 } }
 
                                 ColumnLayout {
                                     anchors.centerIn: parent
-                                    spacing: 2
-                                    Text { text: modelData.day; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#94a3b8"; Layout.alignment: Qt.AlignHCenter }
-                                    Text { text: modelData.icon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: "#38bdf8"; Layout.alignment: Qt.AlignHCenter }
-                                    Text { text: modelData.max + " / " + modelData.min; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: "#f8fafc"; Layout.alignment: Qt.AlignHCenter }
+                                    spacing: 3
+                                    Text {
+                                        text: modelData.day
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 9
+                                        font.weight: Font.Bold
+                                        color: (barContainer.selectedForecastIdx === index) ? barContainer.themeAccent : barContainer.themeMuted
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                    Text {
+                                        text: modelData.icon
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 15
+                                        color: barContainer.themeAccent
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                    Text {
+                                        text: modelData.max + " / " + modelData.min
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 9
+                                        font.weight: Font.Bold
+                                        color: barContainer.themeFg
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: dayClickArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        barContainer.selectedForecastIdx = index;
+                                    }
                                 }
                             }
                         }
@@ -860,7 +976,7 @@ PlasmoidItem {
             }
         }
 
-        // 2. CALENDAR DROPDOWN DIALOG
+        // 2. CALENDAR DROPDOWN DIALOG (SMOOTH SLIDE/FADE MONTH TRANSITION)
         PlasmaCore.Dialog {
             id: calendarDialog
             visualParent: timePill
@@ -869,11 +985,12 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 310
+                width: 320
+                implicitWidth: 320
                 implicitHeight: calCol.implicitHeight + 28
-                color: "#0f172a"
+                color: barContainer.themeBg
                 radius: 14
-                border.color: "#38bdf8"
+                border.color: barContainer.themeAccent
                 border.width: 1
 
                 ColumnLayout {
@@ -887,8 +1004,8 @@ PlasmoidItem {
                         Layout.fillWidth: true
                         height: 52
                         radius: 10
-                        color: "#1e293b"
-                        border.color: "#334155"
+                        color: barContainer.themeCard
+                        border.color: barContainer.themeBorder
                         border.width: 1
 
                         ColumnLayout {
@@ -899,7 +1016,7 @@ PlasmoidItem {
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 16
                                 font.weight: Font.Black
-                                color: "#38bdf8"
+                                color: barContainer.themeAccent
                                 Layout.alignment: Qt.AlignHCenter
                             }
                             Text {
@@ -907,7 +1024,7 @@ PlasmoidItem {
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 10
                                 font.weight: Font.DemiBold
-                                color: "#94a3b8"
+                                color: barContainer.themeMuted
                                 Layout.alignment: Qt.AlignHCenter
                             }
                         }
@@ -917,18 +1034,11 @@ PlasmoidItem {
                     RowLayout {
                         Layout.fillWidth: true
                         Rectangle {
-                            width: 26; height: 26; radius: 6; color: "#1e293b"; border.color: "#334155"; border.width: 1
-                            Text { anchors.centerIn: parent; text: "◀"; font.pixelSize: 10; color: "#cbd5e1" }
+                            width: 28; height: 28; radius: 7; color: barContainer.themeCard; border.color: barContainer.themeBorder; border.width: 1
+                            Text { anchors.centerIn: parent; text: "◀"; font.pixelSize: 10; color: barContainer.themeFg }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (barContainer.calMonth === 0) {
-                                        barContainer.calMonth = 11;
-                                        barContainer.calYear -= 1;
-                                    } else {
-                                        barContainer.calMonth -= 1;
-                                    }
-                                }
+                                onClicked: barContainer.stepMonth(-1)
                             }
                         }
 
@@ -942,24 +1052,17 @@ PlasmoidItem {
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 13
                             font.weight: Font.Bold
-                            color: "#f8fafc"
+                            color: barContainer.themeFg
                         }
 
                         Item { Layout.fillWidth: true }
 
                         Rectangle {
-                            width: 26; height: 26; radius: 6; color: "#1e293b"; border.color: "#334155"; border.width: 1
-                            Text { anchors.centerIn: parent; text: "▶"; font.pixelSize: 10; color: "#cbd5e1" }
+                            width: 28; height: 28; radius: 7; color: barContainer.themeCard; border.color: barContainer.themeBorder; border.width: 1
+                            Text { anchors.centerIn: parent; text: "▶"; font.pixelSize: 10; color: barContainer.themeFg }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (barContainer.calMonth === 11) {
-                                        barContainer.calMonth = 0;
-                                        barContainer.calYear += 1;
-                                    } else {
-                                        barContainer.calMonth += 1;
-                                    }
-                                }
+                                onClicked: barContainer.stepMonth(1)
                             }
                         }
                     }
@@ -979,54 +1082,66 @@ PlasmoidItem {
                                     font.family: "JetBrainsMono Nerd Font"
                                     font.pixelSize: 10
                                     font.weight: Font.Bold
-                                    color: (index >= 5) ? "#38bdf8" : "#64748b"
+                                    color: (index >= 5) ? barContainer.themeAccent : barContainer.themeMuted
                                 }
                             }
                         }
                     }
 
-                    // Interactive Calendar Days Grid (42 cells: 7 columns x 6 rows)
-                    GridLayout {
+                    // Interactive Calendar Days Grid with Smooth Transition
+                    Item {
+                        id: calGridContainer
                         Layout.fillWidth: true
-                        columns: 7
-                        rowSpacing: 4
-                        columnSpacing: 4
+                        height: 200
 
-                        Repeater {
-                            model: 42
-                            delegate: Rectangle {
-                                Layout.fillWidth: true
-                                height: 28
-                                radius: 7
+                        ParallelAnimation {
+                            id: calAnim
+                            NumberAnimation { target: calGridContainer; property: "opacity"; to: 1.0; duration: 220; easing.type: Easing.OutCubic }
+                            NumberAnimation { target: calGridContainer; property: "x"; to: 0; duration: 220; easing.type: Easing.OutCubic }
+                        }
 
-                                readonly property int firstDayWeekday: {
-                                    var f = new Date(barContainer.calYear, barContainer.calMonth, 1).getDay();
-                                    return (f === 0) ? 6 : f - 1; // 0 = Mon, 6 = Sun
-                                }
-                                readonly property int daysInMonth: new Date(barContainer.calYear, barContainer.calMonth + 1, 0).getDate()
-                                readonly property int dayNum: index - firstDayWeekday + 1
-                                readonly property bool isCurrentMonth: dayNum >= 1 && dayNum <= daysInMonth
-                                readonly property bool isToday: isCurrentMonth && dayNum === barContainer.todayDay && barContainer.calMonth === barContainer.todayMonth && barContainer.calYear === barContainer.todayYear
+                        GridLayout {
+                            anchors.fill: parent
+                            columns: 7
+                            rowSpacing: 4
+                            columnSpacing: 4
 
-                                color: isToday ? "#38bdf8" : (isCurrentMonth && dayMouse.containsMouse ? "#1e293b" : "transparent")
-                                border.color: isToday ? "#38bdf8" : (isCurrentMonth && dayMouse.containsMouse ? "#334155" : "transparent")
-                                border.width: 1
+                            Repeater {
+                                model: 42
+                                delegate: Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 28
+                                    radius: 7
 
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: isCurrentMonth ? String(dayNum) : ""
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 10
-                                    font.weight: isToday ? Font.Black : Font.Normal
-                                    color: isToday ? "#0f172a" : (isCurrentMonth ? "#f8fafc" : "transparent")
-                                }
+                                    readonly property int firstDayWeekday: {
+                                        var f = new Date(barContainer.calYear, barContainer.calMonth, 1).getDay();
+                                        return (f === 0) ? 6 : f - 1; // 0 = Mon, 6 = Sun
+                                    }
+                                    readonly property int daysInMonth: new Date(barContainer.calYear, barContainer.calMonth + 1, 0).getDate()
+                                    readonly property int dayNum: index - firstDayWeekday + 1
+                                    readonly property bool isCurrentMonth: dayNum >= 1 && dayNum <= daysInMonth
+                                    readonly property bool isToday: isCurrentMonth && dayNum === barContainer.todayDay && barContainer.calMonth === barContainer.todayMonth && barContainer.calYear === barContainer.todayYear
 
-                                MouseArea {
-                                    id: dayMouse
-                                    anchors.fill: parent
-                                    enabled: isCurrentMonth
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
+                                    color: isToday ? barContainer.themeAccent : (isCurrentMonth && dayMouse.containsMouse ? barContainer.themeCard : "transparent")
+                                    border.color: isToday ? barContainer.themeAccent : (isCurrentMonth && dayMouse.containsMouse ? barContainer.themeBorder : "transparent")
+                                    border.width: 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: isCurrentMonth ? String(dayNum) : ""
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        font.weight: isToday ? Font.Black : Font.Normal
+                                        color: isToday ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : (isCurrentMonth ? barContainer.themeFg : "transparent")
+                                    }
+
+                                    MouseArea {
+                                        id: dayMouse
+                                        anchors.fill: parent
+                                        enabled: isCurrentMonth
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                    }
                                 }
                             }
                         }
@@ -1035,7 +1150,7 @@ PlasmoidItem {
             }
         }
 
-        // 3. BATTERY & POWER PROFILES DROPDOWN DIALOG
+        // 3. BATTERY & POWER PROFILES DROPDOWN DIALOG (NO CLIPPING & EXPANDED)
         PlasmaCore.Dialog {
             id: batteryDialog
             visualParent: batPill
@@ -1044,11 +1159,12 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 290
-                implicitHeight: batCol.implicitHeight + 28
-                color: "#0f172a"
+                width: 340
+                implicitWidth: 340
+                implicitHeight: batCol.implicitHeight + 32
+                color: barContainer.themeBg
                 radius: 14
-                border.color: "#38bdf8"
+                border.color: barContainer.themeAccent
                 border.width: 1
 
                 ColumnLayout {
@@ -1058,9 +1174,10 @@ PlasmoidItem {
                     spacing: 12
 
                     RowLayout {
+                        Layout.fillWidth: true
                         spacing: 8
-                        Text { text: barContainer.batteryIcon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" }
-                        Text { text: "Batería y Rendimiento"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                        Text { text: barContainer.batteryIcon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: barContainer.themeAccent }
+                        Text { text: "Batería y Rendimiento"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: barContainer.themeFg }
                     }
 
                     // Battery percentage & progress bar
@@ -1069,46 +1186,47 @@ PlasmoidItem {
                         spacing: 6
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: barContainer.batteryCharging ? "Cargando (Conectado)" : "Descargando"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#94a3b8" }
+                            Text { text: barContainer.batteryCharging ? "Cargando (Conectado)" : "Descargando"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: barContainer.themeMuted }
                             Item { Layout.fillWidth: true }
-                            Text { text: barContainer.batteryStr; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; font.weight: Font.Black; color: "#38bdf8" }
+                            Text { text: barContainer.batteryStr; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; font.weight: Font.Black; color: barContainer.themeAccent }
                         }
                         Rectangle {
                             Layout.fillWidth: true
                             height: 8
                             radius: 4
-                            color: "#1e293b"
+                            color: barContainer.themeCard
                             Rectangle {
                                 width: Math.max(6, parent.width * (barContainer.batteryPct / 100.0))
                                 height: parent.height
                                 radius: 4
-                                color: (barContainer.batteryPct <= 20) ? "#ef4444" : ((barContainer.batteryPct <= 45) ? "#f59e0b" : "#38bdf8")
+                                color: (barContainer.batteryPct <= 20) ? "#ef4444" : ((barContainer.batteryPct <= 45) ? "#f59e0b" : barContainer.themeAccent)
                             }
                         }
                     }
 
-                    Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
 
-                    Text { text: "Perfil de Energía (Power Profile)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#94a3b8" }
+                    Text { text: "Perfil de Rendimiento Energético"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
 
                     // Power Profiles (Performance, Balanced, Power-saver)
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 6
 
+                        // Performance
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 32
+                            height: 36
                             radius: 8
-                            color: (barContainer.powerProfile === "performance") ? "#38bdf8" : "#1e293b"
-                            border.color: (barContainer.powerProfile === "performance") ? "#38bdf8" : "#334155"
+                            color: (barContainer.powerProfile === "performance") ? barContainer.themeAccent : barContainer.themeCard
+                            border.color: (barContainer.powerProfile === "performance") ? barContainer.themeAccent : barContainer.themeBorder
                             border.width: 1
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
                                 anchors.rightMargin: 12
-                                Text { text: "󰓅"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13; color: (barContainer.powerProfile === "performance") ? "#0f172a" : "#f8fafc" }
-                                Text { text: "Rendimiento (Performance 144Hz)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (barContainer.powerProfile === "performance") ? "#0f172a" : "#f8fafc" }
+                                Text { text: "󰓅"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: (barContainer.powerProfile === "performance") ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
+                                Text { text: "Rendimiento (144Hz Performance)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (barContainer.powerProfile === "performance") ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
                             }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -1119,19 +1237,20 @@ PlasmoidItem {
                             }
                         }
 
+                        // Balanced
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 32
+                            height: 36
                             radius: 8
-                            color: (barContainer.powerProfile === "balanced") ? "#38bdf8" : "#1e293b"
-                            border.color: (barContainer.powerProfile === "balanced") ? "#38bdf8" : "#334155"
+                            color: (barContainer.powerProfile === "balanced") ? barContainer.themeAccent : barContainer.themeCard
+                            border.color: (barContainer.powerProfile === "balanced") ? barContainer.themeAccent : barContainer.themeBorder
                             border.width: 1
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
                                 anchors.rightMargin: 12
-                                Text { text: "󰾆"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13; color: (barContainer.powerProfile === "balanced") ? "#0f172a" : "#f8fafc" }
-                                Text { text: "Equilibrado (Balanced)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (barContainer.powerProfile === "balanced") ? "#0f172a" : "#f8fafc" }
+                                Text { text: "󰾆"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: (barContainer.powerProfile === "balanced") ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
+                                Text { text: "Equilibrado (Balanced)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (barContainer.powerProfile === "balanced") ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
                             }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -1142,19 +1261,20 @@ PlasmoidItem {
                             }
                         }
 
+                        // Power saver
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 32
+                            height: 36
                             radius: 8
-                            color: (barContainer.powerProfile === "power-saver") ? "#38bdf8" : "#1e293b"
-                            border.color: (barContainer.powerProfile === "power-saver") ? "#38bdf8" : "#334155"
+                            color: (barContainer.powerProfile === "power-saver") ? barContainer.themeAccent : barContainer.themeCard
+                            border.color: (barContainer.powerProfile === "power-saver") ? barContainer.themeAccent : barContainer.themeBorder
                             border.width: 1
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
                                 anchors.rightMargin: 12
-                                Text { text: "󰾆"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13; color: (barContainer.powerProfile === "power-saver") ? "#0f172a" : "#f8fafc" }
-                                Text { text: "Ahorro de Batería (Power Saver)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (barContainer.powerProfile === "power-saver") ? "#0f172a" : "#f8fafc" }
+                                Text { text: "󰾆"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: (barContainer.powerProfile === "power-saver") ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
+                                Text { text: "Ahorro de Batería (Power Saver)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: (barContainer.powerProfile === "power-saver") ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
                             }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -1169,7 +1289,7 @@ PlasmoidItem {
             }
         }
 
-        // 4. NETWORK DROPDOWN DIALOG
+        // 4. NETWORK DROPDOWN DIALOG (PUBLIC IP + RX/TX SPEEDS)
         PlasmaCore.Dialog {
             id: networkDialog
             visualParent: netPill
@@ -1178,11 +1298,12 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 280
+                width: 320
+                implicitWidth: 320
                 implicitHeight: netCol.implicitHeight + 28
-                color: "#0f172a"
+                color: barContainer.themeBg
                 radius: 14
-                border.color: "#38bdf8"
+                border.color: barContainer.themeAccent
                 border.width: 1
 
                 ColumnLayout {
@@ -1193,29 +1314,57 @@ PlasmoidItem {
 
                     RowLayout {
                         spacing: 8
-                        Text { text: "󰤨"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" }
-                        Text { text: "Conexión de Red"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                        Text { text: "󰤨"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: barContainer.themeAccent }
+                        Text { text: "Conexión de Red"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: barContainer.themeFg }
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 60
+                        implicitHeight: netInfoCol.implicitHeight + 20
                         radius: 8
-                        color: "#1e293b"
-                        border.color: "#334155"
+                        color: barContainer.themeCard
+                        border.color: barContainer.themeBorder
                         border.width: 1
 
                         ColumnLayout {
+                            id: netInfoCol
                             anchors.fill: parent
-                            anchors.margins: 10
-                            spacing: 2
+                            anchors.margins: 12
+                            spacing: 6
+
                             RowLayout {
-                                Text { text: "Red Actual:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
-                                Text { text: barContainer.networkSsid; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+                                Text { text: "Red Actual:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: barContainer.themeMuted }
+                                Item { Layout.fillWidth: true }
+                                Text { text: barContainer.networkSsid; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: barContainer.themeAccent }
                             }
                             RowLayout {
-                                Text { text: "IP Local:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
-                                Text { text: barContainer.localIp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#f8fafc" }
+                                Text { text: "IP Local:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: barContainer.themeMuted }
+                                Item { Layout.fillWidth: true }
+                                Text { text: barContainer.localIp; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeFg }
+                            }
+                            RowLayout {
+                                Text { text: "IP Pública:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: barContainer.themeMuted }
+                                Item { Layout.fillWidth: true }
+                                Text { text: barContainer.publicIp !== "" ? barContainer.publicIp : "Detectando..."; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeAccent }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
+
+                            // Upload / Download Speeds
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+                                RowLayout {
+                                    spacing: 4
+                                    Text { text: "󰁅"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; color: "#34d399" }
+                                    Text { text: "Bajada: " + barContainer.netRxRate; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeFg }
+                                }
+                                Item { Layout.fillWidth: true }
+                                RowLayout {
+                                    spacing: 4
+                                    Text { text: "󰁝"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; color: "#38bdf8" }
+                                    Text { text: "Subida: " + barContainer.netTxRate; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeFg }
+                                }
                             }
                         }
                     }
@@ -1224,10 +1373,10 @@ PlasmoidItem {
                         Layout.fillWidth: true
                         height: 32
                         radius: 8
-                        color: "#1e293b"
-                        border.color: "#38bdf8"
+                        color: barContainer.themeCard
+                        border.color: barContainer.themeAccent
                         border.width: 1
-                        Text { anchors.centerIn: parent; text: "󰤨 Configuración de Red"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
+                        Text { anchors.centerIn: parent; text: "󰤨 Configuración de Red"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeAccent }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
@@ -1240,7 +1389,7 @@ PlasmoidItem {
             }
         }
 
-        // 5. VOLUME DROPDOWN DIALOG
+        // 5. VOLUME DROPDOWN DIALOG (AUDIO DEVICE SWITCHER)
         PlasmaCore.Dialog {
             id: volumeDialog
             visualParent: volBtn
@@ -1249,11 +1398,12 @@ PlasmoidItem {
             visible: false
 
             mainItem: Rectangle {
-                width: 270
+                width: 330
+                implicitWidth: 330
                 implicitHeight: volCol.implicitHeight + 28
-                color: "#0f172a"
+                color: barContainer.themeBg
                 radius: 14
-                border.color: "#38bdf8"
+                border.color: barContainer.themeAccent
                 border.width: 1
 
                 ColumnLayout {
@@ -1264,15 +1414,15 @@ PlasmoidItem {
 
                     RowLayout {
                         spacing: 8
-                        Text { text: barContainer.volumeIcon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" }
-                        Text { text: "Control de Audio"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                        Text { text: barContainer.volumeIcon; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: barContainer.themeAccent }
+                        Text { text: "Control de Audio"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: barContainer.themeFg }
                         Item { Layout.fillWidth: true }
                         Rectangle {
-                            width: 54; height: 22; radius: 5
-                            color: barContainer.volumeMuted ? "#ef4444" : "#1e293b"
-                            border.color: barContainer.volumeMuted ? "#ef4444" : "#334155"
+                            width: 60; height: 22; radius: 5
+                            color: barContainer.volumeMuted ? "#ef4444" : barContainer.themeCard
+                            border.color: barContainer.volumeMuted ? "#ef4444" : barContainer.themeBorder
                             border.width: 1
-                            Text { anchors.centerIn: parent; text: barContainer.volumeMuted ? "Muted" : "Mute"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; color: "#ffffff" }
+                            Text { anchors.centerIn: parent; text: barContainer.volumeMuted ? "Silenciado" : "Silenciar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: "#ffffff" }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: barContainer.sendCmd("vol_mute")
@@ -1286,9 +1436,9 @@ PlasmoidItem {
                         spacing: 4
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Volumen Master"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
+                            Text { text: "Volumen Master"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: barContainer.themeMuted }
                             Item { Layout.fillWidth: true }
-                            Text { text: Math.round(volSlider.value) + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#38bdf8" }
+                            Text { text: Math.round(volSlider.value) + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: barContainer.themeAccent }
                         }
                         Slider {
                             id: volSlider
@@ -1311,13 +1461,75 @@ PlasmoidItem {
                                 Layout.fillWidth: true
                                 height: 24
                                 radius: 6
-                                color: (barContainer.volume === modelData) ? "#38bdf8" : "#1e293b"
-                                border.color: (barContainer.volume === modelData) ? "#38bdf8" : "#334155"
+                                color: (barContainer.volume === modelData) ? barContainer.themeAccent : barContainer.themeCard
+                                border.color: (barContainer.volume === modelData) ? barContainer.themeAccent : barContainer.themeBorder
                                 border.width: 1
-                                Text { anchors.centerIn: parent; text: modelData + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: (barContainer.volume === modelData) ? "#0f172a" : "#cbd5e1" }
+                                Text { anchors.centerIn: parent; text: modelData + "%"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 9; font.weight: Font.Bold; color: (barContainer.volume === modelData) ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
                                 MouseArea {
                                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                     onClicked: barContainer.sendCmd("vol_set", modelData)
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
+
+                    // Output Devices Header & List
+                    Text { text: "Dispositivo de Salida (Output Device)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 5
+
+                        Repeater {
+                            model: barContainer.audioDevices
+                            delegate: Rectangle {
+                                Layout.fillWidth: true
+                                height: 32
+                                radius: 7
+                                color: modelData.active ? (barContainer.isLightTheme ? "#e0f2fe" : "#1e293b") : barContainer.themeCard
+                                border.color: modelData.active ? barContainer.themeAccent : barContainer.themeBorder
+                                border.width: modelData.active ? 1.5 : 1
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    spacing: 8
+
+                                    Text {
+                                        text: modelData.icon
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 14
+                                        color: modelData.active ? barContainer.themeAccent : barContainer.themeMuted
+                                    }
+
+                                    Text {
+                                        text: modelData.desc
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        font.weight: modelData.active ? Font.Bold : Font.Normal
+                                        color: modelData.active ? barContainer.themeAccent : barContainer.themeFg
+                                        elide: Text.ElideRight
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Text {
+                                        visible: modelData.active
+                                        text: "󰄵"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 12
+                                        color: barContainer.themeAccent
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        barContainer.sendCmd("set_audio_device", modelData.name);
+                                    }
                                 }
                             }
                         }
@@ -1326,7 +1538,7 @@ PlasmoidItem {
             }
         }
 
-        // 6. QUICK THEME SWITCHER DROPDOWN DIALOG (DARK & LIGHT THEMES)
+        // 6. QUICK THEME SWITCHER DROPDOWN DIALOG (DYNAMIC REACTIVE COLORS)
         PlasmaCore.Dialog {
             id: themeDialog
             visualParent: themeBtn
@@ -1336,10 +1548,11 @@ PlasmoidItem {
 
             mainItem: Rectangle {
                 width: 320
+                implicitWidth: 320
                 implicitHeight: themeCol.implicitHeight + 28
-                color: "#0f172a"
+                color: barContainer.themeBg
                 radius: 14
-                border.color: "#38bdf8"
+                border.color: barContainer.themeAccent
                 border.width: 1
 
                 ColumnLayout {
@@ -1350,11 +1563,11 @@ PlasmoidItem {
 
                     RowLayout {
                         spacing: 8
-                        Text { text: "󰏘"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" }
-                        Text { text: "Cambiador Rápido de Tema"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                        Text { text: "󰏘"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: barContainer.themeAccent }
+                        Text { text: "Cambiador Rápido de Tema"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: barContainer.themeFg }
                     }
 
-                    Text { text: "Modo Oscuro (Dark Palettes)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#94a3b8" }
+                    Text { text: "Modo Oscuro (Dark Palettes)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
 
                     // Dark Themes Grid
                     GridLayout {
@@ -1365,7 +1578,7 @@ PlasmoidItem {
 
                         // Obsidian
                         Rectangle {
-                            Layout.fillWidth: true; height: 34; radius: 8; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                            Layout.fillWidth: true; height: 34; radius: 8; color: barContainer.themeCard; border.color: "#38bdf8"; border.width: 1
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 8; spacing: 6
                                 Rectangle { width: 14; height: 14; radius: 3; color: "#0f172a"; border.color: "#38bdf8"; border.width: 1 }
@@ -1374,7 +1587,7 @@ PlasmoidItem {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    barContainer.sendCmd("apply_colorscheme", "Serpanplasma-Obsidian");
+                                    barContainer.setThemeDirect("Serpanplasma-Obsidian");
                                     themeDialog.visible = false;
                                 }
                             }
@@ -1382,7 +1595,7 @@ PlasmoidItem {
 
                         // Mocha
                         Rectangle {
-                            Layout.fillWidth: true; height: 34; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1
+                            Layout.fillWidth: true; height: 34; radius: 8; color: barContainer.themeCard; border.color: "#89b4fa"; border.width: 1
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 8; spacing: 6
                                 Rectangle { width: 14; height: 14; radius: 3; color: "#1e1e2e"; border.color: "#89b4fa"; border.width: 1 }
@@ -1391,7 +1604,7 @@ PlasmoidItem {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    barContainer.sendCmd("apply_colorscheme", "Serpanplasma-Mocha");
+                                    barContainer.setThemeDirect("Serpanplasma-Mocha");
                                     themeDialog.visible = false;
                                 }
                             }
@@ -1399,7 +1612,7 @@ PlasmoidItem {
 
                         // Emerald
                         Rectangle {
-                            Layout.fillWidth: true; height: 34; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1
+                            Layout.fillWidth: true; height: 34; radius: 8; color: barContainer.themeCard; border.color: "#34d399"; border.width: 1
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 8; spacing: 6
                                 Rectangle { width: 14; height: 14; radius: 3; color: "#064e3b"; border.color: "#34d399"; border.width: 1 }
@@ -1408,7 +1621,7 @@ PlasmoidItem {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    barContainer.sendCmd("apply_colorscheme", "Serpanplasma-Emerald");
+                                    barContainer.setThemeDirect("Serpanplasma-Emerald");
                                     themeDialog.visible = false;
                                 }
                             }
@@ -1416,7 +1629,7 @@ PlasmoidItem {
 
                         // Amethyst
                         Rectangle {
-                            Layout.fillWidth: true; height: 34; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1
+                            Layout.fillWidth: true; height: 34; radius: 8; color: barContainer.themeCard; border.color: "#a855f7"; border.width: 1
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 8; spacing: 6
                                 Rectangle { width: 14; height: 14; radius: 3; color: "#1e1b4b"; border.color: "#a855f7"; border.width: 1 }
@@ -1425,16 +1638,16 @@ PlasmoidItem {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    barContainer.sendCmd("apply_colorscheme", "Serpanplasma-Amethyst");
+                                    barContainer.setThemeDirect("Serpanplasma-Amethyst");
                                     themeDialog.visible = false;
                                 }
                             }
                         }
                     }
 
-                    Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
 
-                    Text { text: "Modo Claro (Light Palettes)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#94a3b8" }
+                    Text { text: "Modo Claro (Light Palettes)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: barContainer.themeMuted }
 
                     // Light Themes Grid
                     GridLayout {
@@ -1454,7 +1667,7 @@ PlasmoidItem {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    barContainer.sendCmd("apply_colorscheme", "Serpanplasma-Porcelain");
+                                    barContainer.setThemeDirect("Serpanplasma-Porcelain");
                                     themeDialog.visible = false;
                                 }
                             }
@@ -1471,7 +1684,7 @@ PlasmoidItem {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    barContainer.sendCmd("apply_colorscheme", "Serpanplasma-Latte");
+                                    barContainer.setThemeDirect("Serpanplasma-Latte");
                                     themeDialog.visible = false;
                                 }
                             }
@@ -1488,7 +1701,7 @@ PlasmoidItem {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    barContainer.sendCmd("apply_colorscheme", "Serpanplasma-NordSnow");
+                                    barContainer.setThemeDirect("Serpanplasma-NordSnow");
                                     themeDialog.visible = false;
                                 }
                             }
@@ -1496,19 +1709,138 @@ PlasmoidItem {
 
                         // Ruby Red Dark
                         Rectangle {
-                            Layout.fillWidth: true; height: 34; radius: 8; color: "#1e293b"; border.color: "#f43f5e"; border.width: 1
+                            Layout.fillWidth: true; height: 34; radius: 8; color: "#450a0a"; border.color: "#f43f5e"; border.width: 1
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 8; spacing: 6
-                                Rectangle { width: 14; height: 14; radius: 3; color: "#450a0a"; border.color: "#f43f5e"; border.width: 1 }
+                                Rectangle { width: 14; height: 14; radius: 3; color: "#7f1d1d"; border.color: "#f43f5e"; border.width: 1 }
                                 Text { text: "Ruby Red"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#f43f5e" }
                             }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    barContainer.sendCmd("apply_colorscheme", "Serpanplasma-Ruby");
+                                    barContainer.setThemeDirect("Serpanplasma-Ruby");
                                     themeDialog.visible = false;
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 7. POWER MENU DROPDOWN DIALOG (SHUTDOWN, REBOOT, LOGOUT, LOCK, SUSPEND)
+        PlasmaCore.Dialog {
+            id: powerDialog
+            visualParent: powerBtn
+            location: PlasmaCore.Types.TopEdge
+            type: PlasmaCore.Dialog.PopupMenu
+            visible: false
+
+            mainItem: Rectangle {
+                width: 250
+                implicitWidth: 250
+                implicitHeight: pwrCol.implicitHeight + 28
+                color: barContainer.themeBg
+                radius: 14
+                border.color: "#ef4444"
+                border.width: 1
+
+                ColumnLayout {
+                    id: pwrCol
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 8
+
+                    RowLayout {
+                        spacing: 8
+                        Text { text: "⏻"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 16; color: "#ef4444" }
+                        Text { text: "Gestión de Energía"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: barContainer.themeFg }
+                    }
+
+                    Rectangle { Layout.fillWidth: true; height: 1; color: barContainer.themeBorder }
+
+                    // 1. Apagar Sistema
+                    Rectangle {
+                        Layout.fillWidth: true; height: 34; radius: 8
+                        color: pwrOffMouse.containsMouse ? "#ef4444" : barContainer.themeCard
+                        border.color: pwrOffMouse.containsMouse ? "#ef4444" : barContainer.themeBorder
+                        border.width: 1
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 10
+                            Text { text: "⏻"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: pwrOffMouse.containsMouse ? "#ffffff" : "#ef4444" }
+                            Text { text: "Apagar Sistema"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: pwrOffMouse.containsMouse ? "#ffffff" : barContainer.themeFg }
+                        }
+                        MouseArea {
+                            id: pwrOffMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: { powerDialog.visible = false; barContainer.sendCmd("power_action", "shutdown"); }
+                        }
+                    }
+
+                    // 2. Reiniciar
+                    Rectangle {
+                        Layout.fillWidth: true; height: 34; radius: 8
+                        color: pwrRebootMouse.containsMouse ? "#f59e0b" : barContainer.themeCard
+                        border.color: pwrRebootMouse.containsMouse ? "#f59e0b" : barContainer.themeBorder
+                        border.width: 1
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 10
+                            Text { text: "󰑐"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: pwrRebootMouse.containsMouse ? "#0f172a" : "#f59e0b" }
+                            Text { text: "Reiniciar Equipo"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: pwrRebootMouse.containsMouse ? "#0f172a" : barContainer.themeFg }
+                        }
+                        MouseArea {
+                            id: pwrRebootMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: { powerDialog.visible = false; barContainer.sendCmd("power_action", "reboot"); }
+                        }
+                    }
+
+                    // 3. Cerrar Sesión
+                    Rectangle {
+                        Layout.fillWidth: true; height: 34; radius: 8
+                        color: pwrLogoutMouse.containsMouse ? barContainer.themeAccent : barContainer.themeCard
+                        border.color: pwrLogoutMouse.containsMouse ? barContainer.themeAccent : barContainer.themeBorder
+                        border.width: 1
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 10
+                            Text { text: "󰍃"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: pwrLogoutMouse.containsMouse ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeAccent }
+                            Text { text: "Cerrar Sesión"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: pwrLogoutMouse.containsMouse ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
+                        }
+                        MouseArea {
+                            id: pwrLogoutMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: { powerDialog.visible = false; barContainer.sendCmd("power_action", "logout"); }
+                        }
+                    }
+
+                    // 4. Bloquear Pantalla
+                    Rectangle {
+                        Layout.fillWidth: true; height: 34; radius: 8
+                        color: pwrLockMouse.containsMouse ? barContainer.themeAccent : barContainer.themeCard
+                        border.color: pwrLockMouse.containsMouse ? barContainer.themeAccent : barContainer.themeBorder
+                        border.width: 1
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 10
+                            Text { text: "󰌾"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: pwrLockMouse.containsMouse ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeAccent }
+                            Text { text: "Bloquear Pantalla"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: pwrLockMouse.containsMouse ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
+                        }
+                        MouseArea {
+                            id: pwrLockMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: { powerDialog.visible = false; barContainer.sendCmd("power_action", "lock"); }
+                        }
+                    }
+
+                    // 5. Suspender
+                    Rectangle {
+                        Layout.fillWidth: true; height: 34; radius: 8
+                        color: pwrSuspendMouse.containsMouse ? barContainer.themeAccent : barContainer.themeCard
+                        border.color: pwrSuspendMouse.containsMouse ? barContainer.themeAccent : barContainer.themeBorder
+                        border.width: 1
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 10
+                            Text { text: "󰤄"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: pwrSuspendMouse.containsMouse ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeAccent }
+                            Text { text: "Suspender (Dormir)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: pwrSuspendMouse.containsMouse ? (barContainer.isLightTheme ? "#ffffff" : "#0f172a") : barContainer.themeFg }
+                        }
+                        MouseArea {
+                            id: pwrSuspendMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: { powerDialog.visible = false; barContainer.sendCmd("power_action", "suspend"); }
                         }
                     }
                 }

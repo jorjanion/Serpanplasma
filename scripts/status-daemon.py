@@ -52,7 +52,96 @@ DEFAULT_SETTINGS = {
     "wallpaper_slideshow": True,
     "wallpaper_interval": 900,
     "desktop_widgets": False,
-    "power_profile": "performance"
+    "power_profile": "performance",
+    "widgets": {
+        "hw": {"enabled": True, "x": 60, "y": 80},
+        "clock": {"enabled": True, "x": 480, "y": 80},
+        "weather": {"enabled": True, "x": 920, "y": 80},
+        "music": {"enabled": True, "x": 920, "y": 420}
+    }
+}
+
+THEME_PALETTES = {
+    "Serpanplasma-Obsidian": {
+        "name": "Obsidian",
+        "bg": "#0f172a",
+        "card": "#1e293b",
+        "accent": "#38bdf8",
+        "fg": "#f8fafc",
+        "muted": "#94a3b8",
+        "border": "#334155",
+        "is_light": False
+    },
+    "Serpanplasma-Mocha": {
+        "name": "Catppuccin Mocha",
+        "bg": "#1e1e2e",
+        "card": "#313244",
+        "accent": "#89b4fa",
+        "fg": "#cdd6f4",
+        "muted": "#a6adc8",
+        "border": "#45475a",
+        "is_light": False
+    },
+    "Serpanplasma-Emerald": {
+        "name": "Cyber Emerald",
+        "bg": "#064e3b",
+        "card": "#065f46",
+        "accent": "#10b981",
+        "fg": "#ecfdf5",
+        "muted": "#6ee7b7",
+        "border": "#047857",
+        "is_light": False
+    },
+    "Serpanplasma-Amethyst": {
+        "name": "Deep Amethyst",
+        "bg": "#2e1065",
+        "card": "#3b0764",
+        "accent": "#a855f7",
+        "fg": "#faf5ff",
+        "muted": "#d8b4fe",
+        "border": "#581c87",
+        "is_light": False
+    },
+    "Serpanplasma-Ruby": {
+        "name": "Neon Ruby",
+        "bg": "#450a0a",
+        "card": "#7f1d1d",
+        "accent": "#f43f5e",
+        "fg": "#fff1f2",
+        "muted": "#fda4af",
+        "border": "#991b1b",
+        "is_light": False
+    },
+    "Serpanplasma-Porcelain": {
+        "name": "Porcelain White",
+        "bg": "#f8fafc",
+        "card": "#e2e8f0",
+        "accent": "#0284c7",
+        "fg": "#0f172a",
+        "muted": "#64748b",
+        "border": "#cbd5e1",
+        "is_light": True
+    },
+    "Serpanplasma-Latte": {
+        "name": "Catppuccin Latte",
+        "bg": "#eff1f5",
+        "card": "#dce0e8",
+        "accent": "#1e66f5",
+        "fg": "#4c4f69",
+        "muted": "#6c6f85",
+        "border": "#ccd0da",
+        "is_light": True
+    },
+    "Serpanplasma-NordSnow": {
+        "name": "Nord Snow Polar",
+        "bg": "#eceff4",
+        "card": "#e5e9f0",
+        "accent": "#5e81ac",
+        "fg": "#2e3440",
+        "muted": "#4c566a",
+        "border": "#d8dee9",
+        "is_light": True
+    }
 }
 
 lock = threading.Lock()
@@ -98,6 +187,9 @@ state = {
     "network_icon": "󰤨",
     "network_ssid": "Connected",
     "local_ip": "127.0.0.1",
+    "public_ip": "Obteniendo...",
+    "net_rx_rate": "0 KB/s",
+    "net_tx_rate": "0 KB/s",
     "desktop": 1,
     "desktops_count": 8,
     "temp": "22.1°C",
@@ -110,6 +202,8 @@ state = {
     "volume": 75,
     "volume_icon": "󰕾",
     "volume_muted": False,
+    "audio_devices": [],
+    "default_sink": "",
     "lang": "ES",
     "cpu_pct": 10,
     "ram_pct": 40,
@@ -118,7 +212,14 @@ state = {
     "disk_pct": 10,
     "disk_free_gb": 440.0,
     "uptime": "1h 0m",
-    "power_profile": "performance"
+    "power_profile": "performance",
+    "theme_bg": "#0f172a",
+    "theme_card": "#1e293b",
+    "theme_accent": "#38bdf8",
+    "theme_fg": "#f8fafc",
+    "theme_muted": "#94a3b8",
+    "theme_border": "#334155",
+    "is_light": False
 }
 
 last_weather_fetch = 0
@@ -403,14 +504,117 @@ def update_system_metrics():
         state["uptime"] = uptime_str
         state["power_profile"] = prof
 
+prev_net_rx = 0
+prev_net_tx = 0
+prev_net_time = 0
+
+def update_network_stats():
+    global prev_net_rx, prev_net_tx, prev_net_time, state
+    now = time.time()
+    try:
+        rx_total = 0
+        tx_total = 0
+        with open("/proc/net/dev", "r") as f:
+            lines = f.readlines()[2:]
+            for line in lines:
+                parts = line.split()
+                if len(parts) >= 10:
+                    iface = parts[0].strip(":")
+                    if iface != "lo":
+                        rx_total += int(parts[1])
+                        tx_total += int(parts[9])
+        if prev_net_time > 0:
+            dt = max(0.1, now - prev_net_time)
+            rx_speed = (rx_total - prev_net_rx) / dt
+            tx_speed = (tx_total - prev_net_tx) / dt
+
+            def fmt_speed(bps):
+                if bps < 1024:
+                    return f"{int(bps)} B/s"
+                elif bps < 1024 * 1024:
+                    return f"{bps / 1024:.1f} KB/s"
+                else:
+                    return f"{bps / (1024 * 1024):.1f} MB/s"
+
+            with lock:
+                state["net_rx_rate"] = fmt_speed(max(0, rx_speed))
+                state["net_tx_rate"] = fmt_speed(max(0, tx_speed))
+        prev_net_rx = rx_total
+        prev_net_tx = tx_total
+        prev_net_time = now
+    except Exception:
+        pass
+
+last_public_ip_fetch = 0
+
+def update_public_ip():
+    global last_public_ip_fetch, state
+    now = time.time()
+    if now - last_public_ip_fetch < 300 and last_public_ip_fetch != 0:
+        return
+    last_public_ip_fetch = now
+    try:
+        req = urllib.request.Request("https://api.ipify.org", headers={"User-Agent": "Serpanplasma"})
+        with urllib.request.urlopen(req, timeout=2.5) as resp:
+            ip = resp.read().decode("utf-8").strip()
+            if ip:
+                with lock:
+                    state["public_ip"] = ip
+    except Exception:
+        pass
+
+def update_audio_devices():
+    global state
+    try:
+        default_sink = run_cmd(["pactl", "get-default-sink"])
+        res = subprocess.run(["pactl", "-f", "json", "list", "sinks"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=1.5)
+        if res.stdout:
+            sinks = json.loads(res.stdout)
+            devices = []
+            for s in sinks:
+                name = s.get("name", "")
+                desc = s.get("properties", {}).get("device.description") or s.get("description", "")
+                if not desc or desc == "(null)":
+                    desc = s.get("properties", {}).get("node.nick") or name
+                if "Headset" in desc or "G733" in desc or "Headphone" in desc or "headset" in name.lower():
+                    icon = "󰋋"
+                    if "G733" in desc:
+                        desc = "Logitech G733 Gaming Headset"
+                elif "Speaker" in desc or "Speaker" in name:
+                    icon = "󰓃"
+                    desc = "Altavoces Internos (HP Victus)"
+                elif "HDMI" in name:
+                    icon = "󰍹"
+                    desc = "Monitor LG UltraGear (HDMI)" if "LG" in desc else "Salida Digital HDMI"
+                else:
+                    icon = "󰕾"
+                is_active = (name == default_sink)
+                devices.append({
+                    "name": name,
+                    "desc": desc,
+                    "icon": icon,
+                    "active": is_active
+                })
+            with lock:
+                state["audio_devices"] = devices
+                state["default_sink"] = default_sink
+    except Exception:
+        pass
+
 def update_lang():
     global state
-    layout = run_cmd(["bash", "-c", "setxkbmap -query 2>/dev/null | grep layout | awk '{print $2}'"])
-    if layout:
-        with lock:
-            state["lang"] = layout.upper()[:2]
-    else:
-        with lock:
+    try:
+        res = subprocess.run(["qdbus6", "org.kde.keyboard", "/Layouts", "org.kde.KeyboardLayouts.getLayout"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=0.5)
+        out = res.stdout.strip()
+        if out.isdigit():
+            idx = int(out)
+            with lock:
+                state["lang"] = "ES" if idx == 0 else "US"
+            return
+    except Exception:
+        pass
+    with lock:
+        if not state.get("lang"):
             state["lang"] = "ES"
 
 def background_poller():
@@ -421,13 +625,16 @@ def background_poller():
             update_media()
             update_battery()
             update_network()
+            update_network_stats()
+            update_public_ip()
+            update_audio_devices()
             update_workspaces()
             update_volume()
             update_system_metrics()
             update_lang()
         except Exception:
             pass
-        time.sleep(0.4)
+        time.sleep(0.5)
 
 class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -443,6 +650,18 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             with lock:
                 combined = dict(state)
                 combined.update(settings)
+                active_theme = settings.get("color_scheme", "Serpanplasma-Obsidian")
+                pal = THEME_PALETTES.get(active_theme, THEME_PALETTES["Serpanplasma-Obsidian"])
+                combined["theme_name"] = pal["name"]
+                combined["theme_bg"] = pal["bg"]
+                combined["theme_card"] = pal["card"]
+                combined["theme_accent"] = pal["accent"]
+                combined["theme_fg"] = pal["fg"]
+                combined["theme_muted"] = pal["muted"]
+                combined["theme_border"] = pal["border"]
+                combined["is_light"] = pal["is_light"]
+                if "widgets" not in combined:
+                    combined["widgets"] = DEFAULT_SETTINGS["widgets"]
                 payload = json.dumps(combined).encode("utf-8")
             self.wfile.write(payload)
 
@@ -744,8 +963,75 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             elif action == "apply_colorscheme" and val:
                 subprocess.run(["plasma-apply-colorscheme", val])
                 save_setting("color_scheme", val)
+                if val in THEME_PALETTES:
+                    pal = THEME_PALETTES[val]
+                    with lock:
+                        state["theme_bg"] = pal["bg"]
+                        state["theme_card"] = pal["card"]
+                        state["theme_accent"] = pal["accent"]
+                        state["theme_fg"] = pal["fg"]
+                        state["theme_muted"] = pal["muted"]
+                        state["theme_border"] = pal["border"]
+                        state["is_light"] = pal["is_light"]
 
-            # --- DESKTOP WIDGETS ---
+            # --- POWER ACTIONS ---
+            elif action == "power_action" and val:
+                if val == "shutdown":
+                    subprocess.Popen(["qdbus6", "org.kde.Shutdown", "/Shutdown", "logoutAndShutdown"])
+                elif val == "reboot":
+                    subprocess.Popen(["qdbus6", "org.kde.Shutdown", "/Shutdown", "logoutAndReboot"])
+                elif val == "logout":
+                    subprocess.Popen(["qdbus6", "org.kde.Shutdown", "/Shutdown", "logout"])
+                elif val == "lock":
+                    subprocess.Popen(["loginctl", "lock-session"])
+                elif val == "suspend":
+                    subprocess.Popen(["systemctl", "suspend"])
+
+            # --- AUDIO DEVICE SWITCHER ---
+            elif action == "set_audio_device" and val:
+                subprocess.run(["pactl", "set-default-sink", val])
+                update_audio_devices()
+
+            # --- KEYBOARD LAYOUT TOGGLE ---
+            elif action == "toggle_layout":
+                cur = state.get("lang", "ES")
+                nxt = "US" if cur == "ES" else "ES"
+                with lock:
+                    state["lang"] = nxt
+                save_setting("lang", nxt)
+                subprocess.Popen(["setxkbmap", "-layout", nxt.lower()])
+                subprocess.Popen(["qdbus6", "org.kde.keyboard", "/Layouts", "org.kde.KeyboardLayouts.switchToNextLayout"])
+
+            # --- INDIVIDUAL DESKTOP WIDGETS ---
+            elif action == "set_widget_enabled":
+                w_name = params.get("widget", ["hw"])[0]
+                is_en = (val.lower() == "true")
+                widgets = settings.get("widgets", dict(DEFAULT_SETTINGS["widgets"]))
+                if w_name in widgets:
+                    widgets[w_name]["enabled"] = is_en
+                else:
+                    widgets[w_name] = {"enabled": is_en, "x": 100, "y": 100}
+                save_setting("widgets", widgets)
+
+            elif action == "set_widget_pos":
+                w_name = params.get("widget", ["hw"])[0]
+                try:
+                    x_pos = int(params.get("x", [100])[0])
+                    y_pos = int(params.get("y", [100])[0])
+                    widgets = settings.get("widgets", dict(DEFAULT_SETTINGS["widgets"]))
+                    if w_name in widgets:
+                        widgets[w_name]["x"] = x_pos
+                        widgets[w_name]["y"] = y_pos
+                    else:
+                        widgets[w_name] = {"enabled": True, "x": x_pos, "y": y_pos}
+                    save_setting("widgets", widgets)
+                except Exception:
+                    pass
+
+            elif action == "reset_widget_pos":
+                save_setting("widgets", dict(DEFAULT_SETTINGS["widgets"]))
+
+            # --- DESKTOP WIDGETS RUNNER ---
             elif action == "toggle_desktop_widgets":
                 w_path = os.path.join(home, ".local/share/serpanplasma/widgets/DesktopWidgets.qml")
                 check = subprocess.run(["pgrep", "-f", "[D]esktopWidgets.qml"], stdout=subprocess.PIPE, text=True)

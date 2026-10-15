@@ -39,17 +39,19 @@
 - ✅ **Barra Superior Flotante con Píldoras Exactas:** Barra flotante translúcida con esquinas redondeadas, blur nativo de KWin y cápsulas idénticas a Serpantinum.
 - ✅ **Dock de Aplicaciones Flotante Inferior:** Dock centrado con los iconos de tareas de tus aplicaciones favoritas y zoom al pasar el ratón.
 - ✅ **Menús Desplegables Nativos (Wayland Dialogs):** Haz clic en las píldoras de la barra para abrir paneles emergentes detallados:
-  - 󰖙 **Clima:** Pronóstico meteorológico a 4 días con sensación térmica, humedad y viento.
-  - 󰃮 **Calendario:** Vista interactiva de mes completo con navegación anterior/siguiente.
-  - 󰁹 **Batería & Energía:** Selección en 1 clic de perfiles de energía (`Rendimiento`, `Equilibrado`, `Ahorro`).
-  - 󰤨 **Red Wi-Fi:** SSID actual, dirección IP local y acceso directo a conexiones.
-  - 󰕾 **Volumen:** Deslizador maestro, mute y preajustes rápidos (25%, 50%, 75%, 100%).
-  - 󰏘 **Selector Rápido de Tema:** Cambia al instante entre 8 temas de color.
+  - 󰖙 **Clima:** Pronóstico meteorológico a 4 días con selector de día interactivo, sensación térmica, humedad y viento.
+  - 󰃮 **Calendario:** Vista interactiva de mes completo con navegación de mes animada suavemente y fecha en vivo.
+  - 󰁹 **Batería & Rendimiento:** Vista sin recortes con perfiles de energía (`Rendimiento 144Hz`, `Equilibrado`, `Ahorro de Batería`).
+  - 󰤨 **Red & Tráfico:** SSID actual, IP Local, IP Pública y velocidad en tiempo real de bajada y subida.
+  - 󰕾 **Control de Audio:** Deslizador de volumen maestro, selector de dispositivos de salida de sonido (auriculares, altavoces, HDMI) y presets rápidos.
+  - 󰌌 **Distribución de Teclado:** Píldora interactiva para alternar entre `ES` y `US` con 1 solo clic.
+  - ⏻ **Menú de Energía:** Menú emergente completo para Apagar, Reiniciar, Cerrar Sesión, Bloquear Pantalla y Suspender.
+  - 󰏘 **Selector Rápido de Tema:** Conmutación instantánea y reactiva entre 8 temas oscuros y claros.
 - ✅ **8 Esquemas de Color (Oscuros y Claros):**
   - **Oscuros:** `Obsidian` (Oficial Serpantinum), `Catppuccin Mocha`, `Cyber Emerald`, `Deep Amethyst`, `Neon Ruby`.
   - **Claros:** `Porcelain White`, `Catppuccin Latte`, `Nord Snow Polar`.
 - ✅ **Control Total de Fondos:** Activa o desactiva la rotación de fondos (slideshow) y congela cualquier fondo como estático con 1 clic.
-- ✅ **Widgets de Escritorio:** Widgets translúcidos para monitorizar CPU/RAM/Disco NVMe/Uptime, reloj gigante, clima y música.
+- ✅ **Widgets de Escritorio Modulares y Arrastrables:** 4 tarjetas flotantes independientes (Monitor de Hardware, Reloj Gigante, Clima y MPRIS) que puedes mover libremente con el ratón por la pantalla y activar o desactivar por separado.
 - ✅ **Compatibilidad Universal:** Diseñado para funcionar en cualquier distribución Linux con KDE Plasma 6 (CachyOS, Arch Linux, Fedora, openSUSE, etc.) y en hardware híbrido (AMD + NVIDIA a 144Hz).
 
 ---

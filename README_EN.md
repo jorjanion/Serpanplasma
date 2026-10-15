@@ -41,17 +41,19 @@ It delivers Serpantinum's aesthetics without tiling window managers (like Hyprla
 - ✅ **Floating Top Bar with Native Pills:** Translucent floating top panel with rounded corners, native KWin blur, and capsules identical to Serpantinum.
 - ✅ **Floating Application Dock:** Centered floating bottom dock with task indicators, hover zoom, and intelligent window dodging.
 - ✅ **Native Wayland Dropdown Dialogs:** Clicking top bar pills opens interactive popup cards anchored directly below:
-  - 󰖙 **Weather Card:** 4-day forecast with feels like, humidity, and wind metrics.
-  - 󰃮 **Monthly Calendar:** Interactive calendar with previous/next month navigation.
-  - 󰁹 **Battery & Power Profiles:** 1-click power profile switching (`Performance`, `Balanced`, `Power Saver`).
-  - 󰤨 **Network Details:** SSID, local IPv4 address, and network shortcuts.
-  - 󰕾 **Volume Card:** Master slider, mute toggle, and quick presets (25%, 50%, 75%, 100%).
-  - 󰏘 **Quick Theme Switcher:** Instant 1-click theme switching between 8 palettes.
+  - 󰖙 **Weather Card:** 4-day forecast with interactive day selector, feels like, humidity, and wind metrics.
+  - 󰃮 **Monthly Calendar:** Interactive calendar with smooth animated month transition and live digital clock.
+  - 󰁹 **Battery & Power Profiles:** Unclipped battery monitor with 1-click power profiles (`144Hz Performance`, `Balanced`, `Power Saver`).
+  - 󰤨 **Network & Traffic Details:** SSID, local IP, public IP, and real-time upload/download speeds.
+  - 󰕾 **Audio Controls:** Master volume slider, output audio device switcher (headset, speakers, HDMI), mute toggle, and quick presets.
+  - 󰌌 **Keyboard Layout Pill:** Clickable capsule to toggle between `ES` and `US` layout with 1 click.
+  - ⏻ **Power Menu:** Native popup menu for Shut Down, Reboot, Log Out, Lock Screen, and Suspend.
+  - 󰏘 **Quick Theme Switcher:** Instant, reactive color switching across top bar, pills, and popups.
 - ✅ **8 Dark & Light Color Palettes:**
   - **Dark:** `Obsidian` (Serpantinum Official), `Catppuccin Mocha`, `Cyber Emerald`, `Deep Amethyst`, `Neon Ruby`.
   - **Light:** `Porcelain White`, `Catppuccin Latte`, `Nord Snow Polar`.
 - ✅ **Wallpaper Controls:** Automatic rotation toggle (slideshow) and 1-click button to freeze current wallpaper as static.
-- ✅ **Desktop Widgets:** Floating translucent desktop cards for hardware monitoring (CPU, RAM, NVMe Disk, Uptime), giant clock, weather, and MPRIS music.
+- ✅ **Modular & Draggable Desktop Widgets:** 4 independent floating cards (Hardware Monitor, Giant Clock, Weather Card, and MPRIS Player) that can be freely dragged anywhere across the desktop and enabled/disabled individually.
 - ✅ **Interactive 1:1 Settings & Guide Dashboard:** Standalone Qt6/QML guide with 9 specialized tabs, welcome banner, and real-time reactive toggles.
 - ✅ **Universal Compatibility:** Tailored for any Linux distribution running KDE Plasma 6 (CachyOS, Arch Linux, Fedora, openSUSE, Debian, etc.) and fully verified on hybrid graphics (AMD + NVIDIA 144Hz).
 
