@@ -15,6 +15,39 @@ ApplicationWindow {
     property int currentTab: 0
     property string toastMessage: ""
 
+    // Reactive Settings State
+    property bool barFloating: true
+    property int barHeight: 38
+    property int barOpacity: 85
+    property bool barDistinctPills: true
+    property bool barModSettings: true
+    property bool barModWorkspaces: true
+    property bool barModMedia: true
+    property bool barModClock: true
+    property bool barModWeather: true
+    property bool barModVolume: true
+    property bool barModNetwork: true
+    property bool barModBattery: true
+    property bool barModPower: true
+
+    property bool dockEnabled: true
+    property string dockPosition: "bottom"
+    property bool dockFloating: true
+    property bool dockLayerTop: false
+    property bool dockExclusive: true
+    property int dockHeight: 54
+    property int dockOpacity: 90
+    property int hoverScale: 115
+    property bool cascadeScale: false
+    property bool scrolling: false
+    property int visibleElements: 8
+    property string dockVisibility: "dodgewindows"
+    property bool smartFocus: true
+    property bool runningIndicators: true
+    property bool showAllTasks: true
+    property string activeScope: "current"
+    property int wallpaperInterval: 900
+
     function showToast(msg) {
         toastMessage = msg;
         toastTimer.restart();
@@ -22,32 +55,69 @@ ApplicationWindow {
 
     Timer {
         id: toastTimer
-        interval: 3000
+        interval: 3200
         onTriggered: window.toastMessage = ""
     }
 
-    function sendCmd(action, val) {
+    function sendCmd(action, val, mod) {
         var url = "http://127.0.0.1:19842/cmd?action=" + action;
         if (val !== undefined && val !== "") {
             url += "&val=" + encodeURIComponent(val);
         }
+        if (mod !== undefined && mod !== "") {
+            url += "&mod=" + encodeURIComponent(mod);
+        }
         var xhr = new XMLHttpRequest();
         xhr.open("GET", url);
+        xhr.send();
+    }
+
+    function loadSettings() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "http://127.0.0.1:19842/status");
         xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (action === "next_wallpaper") showToast("Fondo de pantalla actualizado");
-                else if (action === "apply_colorscheme") showToast("Esquema de color " + val + " aplicado");
-                else if (action === "restart_kwin") showToast("Gestor KWin reconfigurado con éxito");
-                else if (action === "restart_plasma") showToast("Entorno PlasmaShell recargado");
-                else if (action === "set_bar_height") showToast("Altura de barra guardada (" + val + "px)");
-                else if (action === "set_dock_height") showToast("Altura de dock guardada (" + val + "px)");
-                else if (action === "set_dock_position") showToast("Posición del dock cambiada a " + val);
-                else if (action === "set_dock_visibility") showToast("Modo de visibilidad del dock cambiado");
-                else if (action === "set_wallpaper_interval") showToast("Intervalo de fondos guardado (" + val + "s)");
-                else showToast("Ajuste aplicado correctamente");
+            if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                try {
+                    var d = JSON.parse(xhr.responseText);
+                    if (d.bar_floating !== undefined) window.barFloating = d.bar_floating;
+                    if (d.bar_height !== undefined) window.barHeight = d.bar_height;
+                    if (d.bar_opacity !== undefined) window.barOpacity = d.bar_opacity;
+                    if (d.bar_distinct_pills !== undefined) window.barDistinctPills = d.bar_distinct_pills;
+                    if (d.bar_mod_settings !== undefined) window.barModSettings = d.bar_mod_settings;
+                    if (d.bar_mod_workspaces !== undefined) window.barModWorkspaces = d.bar_mod_workspaces;
+                    if (d.bar_mod_media !== undefined) window.barModMedia = d.bar_mod_media;
+                    if (d.bar_mod_clock !== undefined) window.barModClock = d.bar_mod_clock;
+                    if (d.bar_mod_weather !== undefined) window.barModWeather = d.bar_mod_weather;
+                    if (d.bar_mod_volume !== undefined) window.barModVolume = d.bar_mod_volume;
+                    if (d.bar_mod_network !== undefined) window.barModNetwork = d.bar_mod_network;
+                    if (d.bar_mod_battery !== undefined) window.barModBattery = d.bar_mod_battery;
+                    if (d.bar_mod_power !== undefined) window.barModPower = d.bar_mod_power;
+
+                    if (d.dock_enabled !== undefined) window.dockEnabled = d.dock_enabled;
+                    if (d.dock_position !== undefined) window.dockPosition = d.dock_position;
+                    if (d.dock_floating !== undefined) window.dockFloating = d.dock_floating;
+                    if (d.dock_layer_top !== undefined) window.dockLayerTop = d.dock_layer_top;
+                    if (d.dock_exclusive !== undefined) window.dockExclusive = d.dock_exclusive;
+                    if (d.dock_height !== undefined) window.dockHeight = d.dock_height;
+                    if (d.dock_opacity !== undefined) window.dockOpacity = d.dock_opacity;
+                    if (d.hover_scale !== undefined) window.hoverScale = d.hover_scale;
+                    if (d.cascade_scale !== undefined) window.cascadeScale = d.cascade_scale;
+                    if (d.scrolling !== undefined) window.scrolling = d.scrolling;
+                    if (d.visible_elements !== undefined) window.visibleElements = d.visible_elements;
+                    if (d.dock_visibility !== undefined) window.dockVisibility = d.dock_visibility;
+                    if (d.smart_focus !== undefined) window.smartFocus = d.smart_focus;
+                    if (d.running_indicators !== undefined) window.runningIndicators = d.running_indicators;
+                    if (d.show_all_tasks !== undefined) window.showAllTasks = d.show_all_tasks;
+                    if (d.active_scope !== undefined) window.activeScope = d.active_scope;
+                    if (d.wallpaper_interval !== undefined) window.wallpaperInterval = d.wallpaper_interval;
+                } catch(e) {}
             }
         };
         xhr.send();
+    }
+
+    Component.onCompleted: {
+        loadSettings();
     }
 
     RowLayout {
@@ -155,7 +225,7 @@ ApplicationWindow {
 
                         Behavior on color { ColorAnimation { duration: 150 } }
 
-                        // Cyan Active Pill Indicator
+                        // Cyan Active Indicator
                         Rectangle {
                             visible: window.currentTab === index
                             anchors.left: parent.left
@@ -180,13 +250,22 @@ ApplicationWindow {
                                 color: (window.currentTab === index) ? "#38bdf8" : (tabMouse.containsMouse ? "#f8fafc" : "#94a3b8")
                             }
 
-                            Text {
-                                text: model.title
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 12
-                                font.weight: (window.currentTab === index) ? Font.Bold : Font.Normal
-                                color: (window.currentTab === index) ? "#f8fafc" : (tabMouse.containsMouse ? "#f8fafc" : "#cbd5e1")
+                            ColumnLayout {
                                 Layout.fillWidth: true
+                                spacing: 0
+                                Text {
+                                    text: model.title
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 11
+                                    font.weight: (window.currentTab === index) ? Font.Bold : Font.Normal
+                                    color: (window.currentTab === index) ? "#f8fafc" : (tabMouse.containsMouse ? "#f8fafc" : "#94a3b8")
+                                }
+                                Text {
+                                    text: model.sub
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 8
+                                    color: (window.currentTab === index) ? "#38bdf8" : "#64748b"
+                                }
                             }
                         }
 
@@ -199,54 +278,18 @@ ApplicationWindow {
                         }
                     }
                 }
-
-                // Quick links at bottom
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 40
-                    radius: 10
-                    color: repoMouse.containsMouse ? "#1e293b" : "#0f172a"
-                    border.color: "#1e293b"
-                    border.width: 1
-
-                    RowLayout {
-                        anchors.centerIn: parent
-                        spacing: 8
-                        Text {
-                            text: "󰊤"
-                            font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 14
-                            color: "#38bdf8"
-                        }
-                        Text {
-                            text: "GitHub Repository"
-                            font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 11
-                            font.weight: Font.DemiBold
-                            color: "#f8fafc"
-                        }
-                    }
-
-                    MouseArea {
-                        id: repoMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: window.sendCmd("open_url", "https://github.com/jorjanion/Serpanplasma")
-                    }
-                }
             }
         }
 
-        // ==================== MAIN CONTENT ====================
+        // ==================== MAIN CONTENT AREA ====================
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
             StackLayout {
-                id: contentStack
+                id: mainStack
                 anchors.fill: parent
-                anchors.margins: 28
+                anchors.margins: 24
                 currentIndex: window.currentTab
 
                 // ---------------- TAB 0: BIENVENIDA ----------------
@@ -269,13 +312,13 @@ ApplicationWindow {
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.margins: 22
-                                spacing: 20
+                                anchors.margins: 20
+                                spacing: 18
 
                                 Rectangle {
-                                    width: 76
-                                    height: 76
-                                    radius: 20
+                                    width: 72
+                                    height: 72
+                                    radius: 18
                                     color: "#1e293b"
                                     border.color: "#38bdf8"
                                     border.width: 1.5
@@ -292,32 +335,33 @@ ApplicationWindow {
                                     spacing: 4
 
                                     RowLayout {
-                                        spacing: 10
+                                        spacing: 8
                                         Text {
-                                            text: "¡Bienvenido a Serpanplasma!"
+                                            text: "Bienvenido a Serpanplasma"
                                             font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 20
+                                            font.pixelSize: 18
                                             font.weight: Font.Black
                                             color: "#f8fafc"
                                         }
                                         Rectangle {
-                                            width: 48
                                             height: 20
                                             radius: 6
-                                            color: "#0284c7"
+                                            color: "#38bdf8"
+                                            implicitWidth: vText.implicitWidth + 12
                                             Text {
+                                                id: vText
                                                 anchors.centerIn: parent
                                                 text: "v1.0.0"
                                                 font.family: "JetBrainsMono Nerd Font"
                                                 font.pixelSize: 10
                                                 font.weight: Font.Bold
-                                                color: "#ffffff"
+                                                color: "#0f172a"
                                             }
                                         }
                                     }
 
                                     Text {
-                                        text: "La experiencia estética minimalista de Serpantinum (ilyamiro) clonada para KDE Plasma 6 sobre Wayland, con gestión de ventanas tradicional flotante estilo Windows."
+                                        text: "Réplica visual y funcional exacta 1:1 de Serpantinum adaptada para KDE Plasma 6 sobre Wayland con gestión de ventanas tradicional flotante (Windows-style)."
                                         font.family: "JetBrainsMono Nerd Font"
                                         font.pixelSize: 11
                                         color: "#94a3b8"
@@ -328,17 +372,16 @@ ApplicationWindow {
                             }
                         }
 
-                        // Feature Grid (4 Cards)
+                        // Feature Grid
                         GridLayout {
                             Layout.fillWidth: true
                             columns: 2
-                            rowSpacing: 14
-                            columnSpacing: 14
+                            rowSpacing: 12
+                            columnSpacing: 12
 
-                            // Card 1: Ventanas
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 110
+                                height: 95
                                 radius: 12
                                 color: "#0f172a"
                                 border.color: "#1e293b"
@@ -348,33 +391,21 @@ ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.margins: 14
                                     spacing: 4
-
                                     RowLayout {
                                         spacing: 8
-                                        Text { text: "🪟"; font.pixelSize: 16 }
-                                        Text {
-                                            text: "Ventanas Flotantes Libres"
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 12
-                                            font.weight: Font.Bold
-                                            color: "#38bdf8"
-                                        }
+                                        Text { text: "󰹑"; font.pixelSize: 16; color: "#38bdf8" }
+                                        Text { text: "Barra Superior con Píldoras"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
                                     }
                                     Text {
-                                        text: "Sin tiling forzado. Las aplicaciones se abren centradas, superponibles, arrastrables y con atajos clásicos Alt+F4 y Alt+Tab."
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        color: "#94a3b8"
-                                        wrapMode: Text.WordWrap
-                                        Layout.fillWidth: true
+                                        text: "Panel flotante superior con reloj apilado en español, reproductor MPRIS, clima en vivo, volumen y cápsulas blancas sólidas."
+                                        font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                                     }
                                 }
                             }
 
-                            // Card 2: Barra de Píldoras
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 110
+                                height: 95
                                 radius: 12
                                 color: "#0f172a"
                                 border.color: "#1e293b"
@@ -384,33 +415,21 @@ ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.margins: 14
                                     spacing: 4
-
                                     RowLayout {
                                         spacing: 8
-                                        Text { text: "💊"; font.pixelSize: 16 }
-                                        Text {
-                                            text: "Barra Superior Flotante"
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 12
-                                            font.weight: Font.Bold
-                                            color: "#38bdf8"
-                                        }
+                                        Text { text: "󰮯"; font.pixelSize: 16; color: "#38bdf8" }
+                                        Text { text: "Dock de Aplicaciones Inferior"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
                                     }
                                     Text {
-                                        text: "Cápsulas dedicadas para workspaces, reproductor multimedia, reloj apilado en español, clima en vivo y píldoras blancas de red y batería."
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        color: "#94a3b8"
-                                        wrapMode: Text.WordWrap
-                                        Layout.fillWidth: true
+                                        text: "Dock flotante centrado con escala al pasar el ratón, esquinas redondeadas, ocultación inteligente y modo desacoplado."
+                                        font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                                     }
                                 }
                             }
 
-                            // Card 3: Dock de Aplicaciones
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 110
+                                height: 95
                                 radius: 12
                                 color: "#0f172a"
                                 border.color: "#1e293b"
@@ -420,33 +439,21 @@ ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.margins: 14
                                     spacing: 4
-
                                     RowLayout {
                                         spacing: 8
-                                        Text { text: "⚓"; font.pixelSize: 16 }
-                                        Text {
-                                            text: "Dock Inferior Centrado"
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 12
-                                            font.weight: Font.Bold
-                                            color: "#38bdf8"
-                                        }
+                                        Text { text: "󰈹"; font.pixelSize: 16; color: "#38bdf8" }
+                                        Text { text: "Ventanas Libres (Sin Tiling)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
                                     }
                                     Text {
-                                        text: "Panel flotante inferior desacoplado con tus aplicaciones principales ancladas (Terminal, Dolphin, Navegador, Discord, Spotify)."
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        color: "#94a3b8"
-                                        wrapMode: Text.WordWrap
-                                        Layout.fillWidth: true
+                                        text: "Ventanas flotantes centradas, clic para enfocar/traer al frente, botones clásicos (_, □, X) y atajos estándar de Windows."
+                                        font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                                     }
                                 }
                             }
 
-                            // Card 4: Tema Obsidian
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 110
+                                height: 95
                                 radius: 12
                                 color: "#0f172a"
                                 border.color: "#1e293b"
@@ -456,25 +463,14 @@ ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.margins: 14
                                     spacing: 4
-
                                     RowLayout {
                                         spacing: 8
                                         Text { text: "🎨"; font.pixelSize: 16 }
-                                        Text {
-                                            text: "Paleta Obsidian"
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 12
-                                            font.weight: Font.Bold
-                                            color: "#38bdf8"
-                                        }
+                                        Text { text: "Paleta Obsidian & 146 Fondos"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#38bdf8" }
                                     }
                                     Text {
-                                        text: "Esquema oscuro pizarra profundo (#0f172a), desenfoque translúcido KWin, acentos cian y tipografía JetBrains Mono SemiBold."
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        color: "#94a3b8"
-                                        wrapMode: Text.WordWrap
-                                        Layout.fillWidth: true
+                                        text: "Esquema oscuro pizarra profundo (#0f172a), desenfoque translúcido KWin, acentos cian y rotación de fondos automática."
+                                        font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                                     }
                                 }
                             }
@@ -490,19 +486,8 @@ ApplicationWindow {
                                 height: 40
                                 radius: 10
                                 color: "#38bdf8"
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "󰹑 Configurar Barra"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 12
-                                    font.weight: Font.Bold
-                                    color: "#0f172a"
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: window.currentTab = 1
-                                }
+                                Text { anchors.centerIn: parent; text: "󰹑 Configurar Barra"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#0f172a" }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.currentTab = 1 }
                             }
 
                             Rectangle {
@@ -512,19 +497,8 @@ ApplicationWindow {
                                 color: "#1e293b"
                                 border.color: "#334155"
                                 border.width: 1
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "󰮯 Configurar Dock"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 12
-                                    font.weight: Font.Bold
-                                    color: "#f8fafc"
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: window.currentTab = 2
-                                }
+                                Text { anchors.centerIn: parent; text: "󰮯 Configurar Dock"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.currentTab = 2 }
                             }
 
                             Rectangle {
@@ -534,19 +508,8 @@ ApplicationWindow {
                                 color: "#1e293b"
                                 border.color: "#334155"
                                 border.width: 1
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "󰏘 Personalizar Tema"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 12
-                                    font.weight: Font.Bold
-                                    color: "#f8fafc"
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: window.currentTab = 3
-                                }
+                                Text { anchors.centerIn: parent; text: "󰏘 Personalizar Tema"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.currentTab = 3 }
                             }
                         }
                     }
@@ -570,7 +533,7 @@ ApplicationWindow {
                         }
 
                         Text {
-                            text: "Ajusta la posición, altura, estilo de píldoras y visibilidad de los módulos en la barra superior."
+                            text: "Ajusta la posición, altura, estilo de píldoras y visibilidad de los módulos en la barra superior en tiempo real."
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 11
                             color: "#94a3b8"
@@ -602,11 +565,18 @@ ApplicationWindow {
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Slider { id: barSlider; Layout.fillWidth: true; from: 30; to: 50; value: 38; stepSize: 1 }
+                                    Slider { id: barSlider; Layout.fillWidth: true; from: 30; to: 50; value: window.barHeight; stepSize: 1 }
                                     Rectangle {
                                         width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
                                         Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
-                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_bar_height", Math.round(barSlider.value)) }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.barHeight = Math.round(barSlider.value);
+                                                window.sendCmd("set_bar_height", window.barHeight);
+                                                window.showToast("Altura de barra guardada (" + window.barHeight + "px)");
+                                            }
+                                        }
                                     }
                                 }
 
@@ -617,20 +587,49 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     Text { text: Math.round(barOpacitySlider.value) + " %"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
                                 }
-                                Slider { id: barOpacitySlider; Layout.fillWidth: true; from: 20; to: 100; value: 85; stepSize: 5 }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Slider { id: barOpacitySlider; Layout.fillWidth: true; from: 20; to: 100; value: window.barOpacity; stepSize: 5 }
+                                    Rectangle {
+                                        width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                                        Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.barOpacity = Math.round(barOpacitySlider.value);
+                                                window.sendCmd("set_bar_opacity", window.barOpacity);
+                                                window.showToast("Opacidad de la barra guardada (" + window.barOpacity + "%)");
+                                            }
+                                        }
+                                    }
+                                }
 
                                 // Toggles de estilo
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "Píldoras distintas (Distinct Pills)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.showToast("Estilo de píldoras guardado") }
+                                    Switch {
+                                        checked: window.barDistinctPills
+                                        onToggled: {
+                                            window.barDistinctPills = checked;
+                                            window.sendCmd("set_distinct_pills", checked ? "true" : "false");
+                                            window.showToast(checked ? "Estilo de píldoras individuales activado" : "Estilo de barra unificada activado");
+                                        }
+                                    }
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "Modo flotante desacoplado"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.showToast("Modo flotante activo") }
+                                    Switch {
+                                        checked: window.barFloating
+                                        onToggled: {
+                                            window.barFloating = checked;
+                                            window.sendCmd("set_bar_floating", checked ? "true" : "false");
+                                            window.showToast(checked ? "Barra superior en modo flotante (desacoplada)" : "Barra superior acoplada al borde superior");
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -652,69 +651,123 @@ ApplicationWindow {
 
                                 Text { text: "Módulos y Cápsulas de la Barra"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
 
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "󰒓 Botón de Ajustes y Guía"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "󰮯 Espacios de Trabajo (Pills/Dots)"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "󰎈 Reproductor de Música MPRIS"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "󰅐 Reloj Digital Apilado (Hora + Fecha)"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "☁ Clima en Vivo (Open-Meteo)"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "󰕾 Control de Volumen y Rueda"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "󰤨 Cápsula Blanca Sólida de Red"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "󰁹 Cápsula Blanca Sólida de Batería"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
-                                RowLayout { Layout.fillWidth: true
-                                Text { text: "⏻ Botón Circular de Apagado"
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                color: "#cbd5e1" }
-                                Item { Layout.fillWidth: true }
-                                Switch { checked: true } }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰒓 Botón de Ajustes y Guía"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModSettings
+                                        onToggled: {
+                                            window.barModSettings = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "settings");
+                                            window.showToast(checked ? "Botón de ajustes visible" : "Botón de ajustes ocultado");
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰮯 Espacios de Trabajo (Pills/Dots)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModWorkspaces
+                                        onToggled: {
+                                            window.barModWorkspaces = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "workspaces");
+                                            window.showToast(checked ? "Módulo de escritorios visible" : "Módulo de escritorios ocultado");
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰎈 Reproductor de Música MPRIS"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModMedia
+                                        onToggled: {
+                                            window.barModMedia = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "media");
+                                            window.showToast(checked ? "Reproductor de música visible" : "Reproductor de música ocultado");
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰅐 Reloj Digital Apilado (Hora + Fecha)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModClock
+                                        onToggled: {
+                                            window.barModClock = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "clock");
+                                            window.showToast(checked ? "Reloj digital visible" : "Reloj digital ocultado");
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "☁ Clima en Vivo (Open-Meteo)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModWeather
+                                        onToggled: {
+                                            window.barModWeather = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "weather");
+                                            window.showToast(checked ? "Módulo de clima en vivo activado" : "Módulo de clima ocultado");
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰕾 Control de Volumen y Rueda"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModVolume
+                                        onToggled: {
+                                            window.barModVolume = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "volume");
+                                            window.showToast(checked ? "Control de volumen visible" : "Control de volumen ocultado");
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰤨 Cápsula Blanca Sólida de Red"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModNetwork
+                                        onToggled: {
+                                            window.barModNetwork = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "network");
+                                            window.showToast(checked ? "Cápsula de red visible" : "Cápsula de red ocultada");
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰁹 Cápsula Blanca Sólida de Batería"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModBattery
+                                        onToggled: {
+                                            window.barModBattery = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "battery");
+                                            window.showToast(checked ? "Cápsula de batería visible" : "Cápsula de batería ocultada");
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "⏻ Botón Circular de Apagado"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch {
+                                        checked: window.barModPower
+                                        onToggled: {
+                                            window.barModPower = checked;
+                                            window.sendCmd("set_bar_module", checked ? "true" : "false", "power");
+                                            window.showToast(checked ? "Botón de apagado visible" : "Botón de apagado ocultado");
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -726,7 +779,13 @@ ApplicationWindow {
                                 Text { text: "󰑓"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: "#38bdf8" }
                                 Text { text: "Recargar Barra Superior y PlasmaShell"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
                             }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("restart_plasma") }
+                            MouseArea {
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    window.sendCmd("restart_plasma");
+                                    window.showToast("Reiniciando PlasmaShell...");
+                                }
+                            }
                         }
                     }
                 }
@@ -776,7 +835,14 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Text { text: "󰅀 Habilitar dock"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.showToast("Dock activo") }
+                                    Switch {
+                                        checked: window.dockEnabled
+                                        onToggled: {
+                                            window.dockEnabled = checked;
+                                            window.sendCmd("set_dock_enabled", checked ? "true" : "false");
+                                            window.showToast(checked ? "Dock de aplicaciones habilitado" : "Dock de aplicaciones deshabilitado");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
@@ -786,19 +852,58 @@ ApplicationWindow {
                                     RowLayout {
                                         spacing: 6
                                         Rectangle {
-                                            width: 60; height: 26; radius: 6; color: "#38bdf8"
-                                            Text { anchors.centerIn: parent; text: "Abajo"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#0f172a" }
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_dock_position", "bottom") }
+                                            width: 60; height: 26; radius: 6
+                                            color: (window.dockPosition === "bottom") ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.dockPosition === "bottom") ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "Abajo"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.dockPosition === "bottom") ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.dockPosition = "bottom";
+                                                    window.sendCmd("set_dock_position", "bottom");
+                                                    window.showToast("Posición del dock: Abajo");
+                                                }
+                                            }
                                         }
                                         Rectangle {
-                                            width: 60; height: 26; radius: 6; color: "#1e293b"; border.color: "#334155"; border.width: 1
-                                            Text { anchors.centerIn: parent; text: "Izquierda"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#cbd5e1" }
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_dock_position", "left") }
+                                            width: 60; height: 26; radius: 6
+                                            color: (window.dockPosition === "left") ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.dockPosition === "left") ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "Izquierda"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.dockPosition === "left") ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.dockPosition = "left";
+                                                    window.sendCmd("set_dock_position", "left");
+                                                    window.showToast("Posición del dock: Izquierda");
+                                                }
+                                            }
                                         }
                                         Rectangle {
-                                            width: 60; height: 26; radius: 6; color: "#1e293b"; border.color: "#334155"; border.width: 1
-                                            Text { anchors.centerIn: parent; text: "Derecha"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#cbd5e1" }
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_dock_position", "right") }
+                                            width: 60; height: 26; radius: 6
+                                            color: (window.dockPosition === "right") ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.dockPosition === "right") ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "Derecha"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.dockPosition === "right") ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.dockPosition = "right";
+                                                    window.sendCmd("set_dock_position", "right");
+                                                    window.showToast("Posición del dock: Derecha");
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -807,21 +912,42 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Text { text: "󰉈 Dock flotante desacoplado"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.showToast("Modo flotante activo") }
+                                    Switch {
+                                        checked: window.dockFloating
+                                        onToggled: {
+                                            window.dockFloating = checked;
+                                            window.sendCmd("set_dock_floating", checked ? "true" : "false");
+                                            window.showToast(checked ? "Dock flotante activado (desacoplado de los bordes)" : "Dock acoplado a los bordes de la pantalla");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "󰹤 Colocar dock siempre sobre las ventanas"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: false; onClicked: window.showToast("Ajuste de capas guardado") }
+                                    Switch {
+                                        checked: window.dockLayerTop
+                                        onToggled: {
+                                            window.dockLayerTop = checked;
+                                            window.sendCmd("set_dock_layer", checked ? "true" : "false");
+                                            window.showToast(checked ? "Dock siempre encima de las ventanas activas" : "Ventanas pueden superponerse libremente al dock");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "󰖲 Modo exclusivo (Reservar espacio en pantalla)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.showToast("Modo exclusivo activo") }
+                                    Switch {
+                                        checked: window.dockExclusive
+                                        onToggled: {
+                                            window.dockExclusive = checked;
+                                            window.sendCmd("set_dock_exclusive", checked ? "true" : "false");
+                                            window.showToast(checked ? "Modo exclusivo activado (reserva espacio para ventanas)" : "Modo exclusivo desactivado (permite flotar sobre el área útil)");
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -852,11 +978,18 @@ ApplicationWindow {
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Slider { id: dockSlider; Layout.fillWidth: true; from: 44; to: 68; value: 54; stepSize: 1 }
+                                    Slider { id: dockSlider; Layout.fillWidth: true; from: 44; to: 68; value: window.dockHeight; stepSize: 1 }
                                     Rectangle {
                                         width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
                                         Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
-                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_dock_height", Math.round(dockSlider.value)) }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.dockHeight = Math.round(dockSlider.value);
+                                                window.sendCmd("set_dock_height", window.dockHeight);
+                                                window.showToast("Altura de dock guardada (" + window.dockHeight + "px)");
+                                            }
+                                        }
                                     }
                                 }
 
@@ -867,7 +1000,22 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     Text { text: Math.round(dockOpacitySlider.value) + " %"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
                                 }
-                                Slider { id: dockOpacitySlider; Layout.fillWidth: true; from: 20; to: 100; value: 90; stepSize: 5 }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Slider { id: dockOpacitySlider; Layout.fillWidth: true; from: 20; to: 100; value: window.dockOpacity; stepSize: 5 }
+                                    Rectangle {
+                                        width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                                        Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.dockOpacity = Math.round(dockOpacitySlider.value);
+                                                window.sendCmd("set_dock_opacity", window.dockOpacity);
+                                                window.showToast("Opacidad de dock guardada (" + window.dockOpacity + "%)");
+                                            }
+                                        }
+                                    }
+                                }
 
                                 // Hover Scale Slider
                                 RowLayout {
@@ -876,20 +1024,49 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     Text { text: Math.round(hoverScaleSlider.value) + " %"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
                                 }
-                                Slider { id: hoverScaleSlider; Layout.fillWidth: true; from: 100; to: 140; value: 115; stepSize: 5 }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Slider { id: hoverScaleSlider; Layout.fillWidth: true; from: 100; to: 140; value: window.hoverScale; stepSize: 5 }
+                                    Rectangle {
+                                        width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                                        Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.hoverScale = Math.round(hoverScaleSlider.value);
+                                                window.sendCmd("set_hover_scale", window.hoverScale);
+                                                window.showToast("Efecto de zoom al pasar el ratón: " + window.hoverScale + "%");
+                                            }
+                                        }
+                                    }
+                                }
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "󰘚 Escalar elementos cercanos (Cascade scale)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: false; onClicked: window.showToast("Efecto de cascada guardado") }
+                                    Switch {
+                                        checked: window.cascadeScale
+                                        onToggled: {
+                                            window.cascadeScale = checked;
+                                            window.sendCmd("set_cascade_scale", checked ? "true" : "false");
+                                            window.showToast(checked ? "Efecto de escala en cascada activado" : "Efecto de cascada desactivado");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "󰍽 Habilitar desplazamiento de elementos (Scrolling)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: false; onClicked: window.showToast("Desplazamiento guardado") }
+                                    Switch {
+                                        checked: window.scrolling
+                                        onToggled: {
+                                            window.scrolling = checked;
+                                            window.sendCmd("set_scrolling", checked ? "true" : "false");
+                                            window.showToast(checked ? "Desplazamiento horizontal de iconos activado" : "Desplazamiento horizontal desactivado");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
@@ -898,7 +1075,22 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     Text { text: Math.round(visElemSlider.value) + " elementos"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
                                 }
-                                Slider { id: visElemSlider; Layout.fillWidth: true; from: 4; to: 12; value: 8; stepSize: 1 }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Slider { id: visElemSlider; Layout.fillWidth: true; from: 4; to: 12; value: window.visibleElements; stepSize: 1 }
+                                    Rectangle {
+                                        width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                                        Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.visibleElements = Math.round(visElemSlider.value);
+                                                window.sendCmd("set_visible_elements", window.visibleElements);
+                                                window.showToast("Límite de elementos visibles: " + window.visibleElements);
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -923,35 +1115,72 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Text { text: "󱂬 Ocultación inteligente (Esquivar ventanas / Dodge)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.sendCmd("set_dock_visibility", "windowsCanCover") }
+                                    Switch {
+                                        checked: window.dockVisibility === "dodgewindows"
+                                        onToggled: {
+                                            var newVis = checked ? "dodgewindows" : "none";
+                                            window.dockVisibility = newVis;
+                                            window.sendCmd("set_dock_visibility", newVis);
+                                            window.showToast(checked ? "Ocultación inteligente (Dodge) activada" : "Ocultación inteligente desactivada");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "󰘓 Ocultar automáticamente (Auto-hide al salir cursor)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: false; onClicked: window.sendCmd("set_dock_visibility", "autohide") }
+                                    Switch {
+                                        checked: window.dockVisibility === "autohide"
+                                        onToggled: {
+                                            var newVis = checked ? "autohide" : "none";
+                                            window.dockVisibility = newVis;
+                                            window.sendCmd("set_dock_visibility", newVis);
+                                            window.showToast(checked ? "Auto-hide automático activado" : "Auto-hide desactivado");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "󱂬 Enfocar ventana existente en lugar de duplicar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.showToast("Enfoque inteligente activo") }
+                                    Switch {
+                                        checked: window.smartFocus
+                                        onToggled: {
+                                            window.smartFocus = checked;
+                                            window.sendCmd("set_dock_smart_focus", checked ? "true" : "false");
+                                            window.showToast(checked ? "Enfoque inteligente de ventanas activado" : "Apertura de nuevas instancias activado");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "󰄯 Indicadores discretos de aplicación en ejecución"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.showToast("Indicadores de ejecución activos") }
+                                    Switch {
+                                        checked: window.runningIndicators
+                                        onToggled: {
+                                            window.runningIndicators = checked;
+                                            window.sendCmd("set_dock_indicators", checked ? "true" : "false");
+                                            window.showToast(checked ? "Indicadores de ejecución visibles" : "Indicadores de ejecución ocultados");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: "󰘓 Mostrar todas las aplicaciones abiertas en el dock"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Switch { checked: true; onClicked: window.showToast("Tareas abiertas activas") }
+                                    Switch {
+                                        checked: window.showAllTasks
+                                        onToggled: {
+                                            window.showAllTasks = checked;
+                                            window.sendCmd("set_dock_tasks", checked ? "true" : "false");
+                                            window.showToast(checked ? "Tareas abiertas visibles en el dock" : "Dock en modo solo iconos anclados");
+                                        }
+                                    }
                                 }
 
                                 RowLayout {
@@ -960,34 +1189,42 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     RowLayout {
                                         spacing: 6
-                                        Rectangle { width: 80
-                                        height: 26
-                                        radius: 6
-                                        color: "#38bdf8"
-                                        Text { anchors.centerIn: parent
-                                        text: "Escritorio"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        font.weight: Font.Bold
-                                        color: "#0f172a" }
-                                        MouseArea { anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: window.showToast("Ámbito: Escritorio actual") } }
-                                        Rectangle { width: 60
-                                        height: 26
-                                        radius: 6
-                                        color: "#1e293b"
-                                        border.color: "#334155"
-                                        border.width: 1
-                                        Text { anchors.centerIn: parent
-                                        text: "Todos"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        font.weight: Font.Bold
-                                        color: "#cbd5e1" }
-                                        MouseArea { anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: window.showToast("Ámbito: Todos los escritorios") } }
+                                        Rectangle {
+                                            width: 80; height: 26; radius: 6
+                                            color: (window.activeScope === "current") ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.activeScope === "current") ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "Escritorio"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.activeScope === "current") ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.activeScope = "current";
+                                                    window.sendCmd("set_dock_scope", "current");
+                                                    window.showToast("Ámbito: Solo tareas del escritorio actual");
+                                                }
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 60; height: 26; radius: 6
+                                            color: (window.activeScope === "all") ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.activeScope === "all") ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "Todos"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.activeScope === "all") ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.activeScope = "all";
+                                                    window.sendCmd("set_dock_scope", "all");
+                                                    window.showToast("Ámbito: Tareas de todos los escritorios");
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1012,72 +1249,12 @@ ApplicationWindow {
 
                                 RowLayout {
                                     spacing: 12
-                                    Rectangle { width: 38
-                                    height: 38
-                                    radius: 8
-                                    color: "#1e293b"
-                                    border.color: "#334155"
-                                    border.width: 1
-                                    Text { anchors.centerIn: parent
-                                    text: "󰞷"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 18
-                                    color: "#38bdf8" } }
-                                    Rectangle { width: 38
-                                    height: 38
-                                    radius: 8
-                                    color: "#1e293b"
-                                    border.color: "#334155"
-                                    border.width: 1
-                                    Text { anchors.centerIn: parent
-                                    text: "󰉋"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 18
-                                    color: "#38bdf8" } }
-                                    Rectangle { width: 38
-                                    height: 38
-                                    radius: 8
-                                    color: "#1e293b"
-                                    border.color: "#334155"
-                                    border.width: 1
-                                    Text { anchors.centerIn: parent
-                                    text: "󰇧"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 18
-                                    color: "#38bdf8" } }
-                                    Rectangle { width: 38
-                                    height: 38
-                                    radius: 8
-                                    color: "#1e293b"
-                                    border.color: "#334155"
-                                    border.width: 1
-                                    Text { anchors.centerIn: parent
-                                    text: "󰙯"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 18
-                                    color: "#38bdf8" } }
-                                    Rectangle { width: 38
-                                    height: 38
-                                    radius: 8
-                                    color: "#1e293b"
-                                    border.color: "#334155"
-                                    border.width: 1
-                                    Text { anchors.centerIn: parent
-                                    text: "󰓇"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 18
-                                    color: "#38bdf8" } }
-                                    Rectangle { width: 38
-                                    height: 38
-                                    radius: 8
-                                    color: "#1e293b"
-                                    border.color: "#334155"
-                                    border.width: 1
-                                    Text { anchors.centerIn: parent
-                                    text: "󰒓"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 18
-                                    color: "#38bdf8" } }
+                                    Rectangle { width: 38; height: 38; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1; Text { anchors.centerIn: parent; text: "󰞷"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
+                                    Rectangle { width: 38; height: 38; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1; Text { anchors.centerIn: parent; text: "󰉋"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
+                                    Rectangle { width: 38; height: 38; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1; Text { anchors.centerIn: parent; text: "󰇧"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
+                                    Rectangle { width: 38; height: 38; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1; Text { anchors.centerIn: parent; text: "󰙯"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
+                                    Rectangle { width: 38; height: 38; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1; Text { anchors.centerIn: parent; text: "󰓇"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
+                                    Rectangle { width: 38; height: 38; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1; Text { anchors.centerIn: parent; text: "󰒓"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
                                 }
                                 Text { text: "Puedes arrastrar y soltar cualquier aplicación desde el menú para anclarla o desanclarla con clic derecho."; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
                             }
@@ -1091,7 +1268,13 @@ ApplicationWindow {
                                 Text { text: "󰑓"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: "#38bdf8" }
                                 Text { text: "Reiniciar Dock y Aplicar Cambios"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
                             }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("restart_plasma") }
+                            MouseArea {
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    window.sendCmd("restart_plasma");
+                                    window.showToast("Reiniciando Dock y PlasmaShell...");
+                                }
+                            }
                         }
                     }
                 }
@@ -1147,7 +1330,13 @@ ApplicationWindow {
                                         Rectangle {
                                             width: 60; height: 22; radius: 6; color: "#38bdf8"
                                             Text { anchors.centerIn: parent; text: "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#0f172a" }
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("apply_colorscheme", "Serpanplasma-Obsidian") }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.sendCmd("apply_colorscheme", "Serpanplasma-Obsidian");
+                                                    window.showToast("Esquema Obsidian activado");
+                                                }
+                                            }
                                         }
                                     }
 
@@ -1182,7 +1371,13 @@ ApplicationWindow {
                                         Rectangle {
                                             width: 60; height: 22; radius: 6; color: "#1e293b"; border.color: "#334155"; border.width: 1
                                             Text { anchors.centerIn: parent; text: "Activar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#cbd5e1" }
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("apply_colorscheme", "BreezeDark") }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.sendCmd("apply_colorscheme", "BreezeDark");
+                                                    window.showToast("Esquema Breeze Dark activado");
+                                                }
+                                            }
                                         }
                                     }
 
@@ -1290,7 +1485,10 @@ ApplicationWindow {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: window.sendCmd("restart_kwin")
+                                onClicked: {
+                                    window.sendCmd("restart_kwin");
+                                    window.showToast("KWin reconfigurado con éxito");
+                                }
                             }
                         }
                     }
@@ -1344,105 +1542,104 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     RowLayout {
                                         spacing: 6
-                                        Rectangle { width: 50
-                                        height: 26
-                                        radius: 6
-                                        color: "#1e293b"
-                                        border.color: "#334155"
-                                        border.width: 1
-                                        Text { anchors.centerIn: parent
-                                        text: "5m"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        color: "#cbd5e1" }
-                                        MouseArea { anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: window.sendCmd("set_wallpaper_interval", "300") } }
-                                        Rectangle { width: 50
-                                        height: 26
-                                        radius: 6
-                                        color: "#38bdf8"
-                                        Text { anchors.centerIn: parent
-                                        text: "15m"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        font.weight: Font.Bold
-                                        color: "#0f172a" }
-                                        MouseArea { anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: window.sendCmd("set_wallpaper_interval", "900") } }
-                                        Rectangle { width: 50
-                                        height: 26
-                                        radius: 6
-                                        color: "#1e293b"
-                                        border.color: "#334155"
-                                        border.width: 1
-                                        Text { anchors.centerIn: parent
-                                        text: "30m"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        color: "#cbd5e1" }
-                                        MouseArea { anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: window.sendCmd("set_wallpaper_interval", "1800") } }
-                                        Rectangle { width: 50
-                                        height: 26
-                                        radius: 6
-                                        color: "#1e293b"
-                                        border.color: "#334155"
-                                        border.width: 1
-                                        Text { anchors.centerIn: parent
-                                        text: "1h"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        color: "#cbd5e1" }
-                                        MouseArea { anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: window.sendCmd("set_wallpaper_interval", "3600") } }
+                                        Rectangle {
+                                            width: 50; height: 26; radius: 6
+                                            color: (window.wallpaperInterval === 300) ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.wallpaperInterval === 300) ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "5m"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.wallpaperInterval === 300) ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.wallpaperInterval = 300;
+                                                    window.sendCmd("set_wallpaper_interval", "300");
+                                                    window.showToast("Intervalo de cambio: 5 minutos");
+                                                }
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 50; height: 26; radius: 6
+                                            color: (window.wallpaperInterval === 900) ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.wallpaperInterval === 900) ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "15m"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.wallpaperInterval === 900) ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.wallpaperInterval = 900;
+                                                    window.sendCmd("set_wallpaper_interval", "900");
+                                                    window.showToast("Intervalo de cambio: 15 minutos");
+                                                }
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 50; height: 26; radius: 6
+                                            color: (window.wallpaperInterval === 1800) ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.wallpaperInterval === 1800) ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "30m"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.wallpaperInterval === 1800) ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.wallpaperInterval = 1800;
+                                                    window.sendCmd("set_wallpaper_interval", "1800");
+                                                    window.showToast("Intervalo de cambio: 30 minutos");
+                                                }
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 50; height: 26; radius: 6
+                                            color: (window.wallpaperInterval === 3600) ? "#38bdf8" : "#1e293b"
+                                            border.color: (window.wallpaperInterval === 3600) ? "#38bdf8" : "#334155"
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent; text: "1h"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold
+                                                color: (window.wallpaperInterval === 3600) ? "#0f172a" : "#cbd5e1"
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    window.wallpaperInterval = 3600;
+                                                    window.sendCmd("set_wallpaper_interval", "3600");
+                                                    window.showToast("Intervalo de cambio: 1 hora");
+                                                }
+                                            }
+                                        }
                                     }
                                 }
 
                                 RowLayout {
                                     spacing: 12
                                     Rectangle {
-                                        Layout.fillWidth: true
-                                        height: 36
-                                        radius: 8
-                                        color: "#38bdf8"
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "󰒭 Siguiente Fondo de Pantalla"
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 11
-                                            font.weight: Font.Bold
-                                            color: "#0f172a"
-                                        }
+                                        Layout.fillWidth: true; height: 36; radius: 8; color: "#38bdf8"
+                                        Text { anchors.centerIn: parent; text: "󰒭 Siguiente Fondo de Pantalla"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#0f172a" }
                                         MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: window.sendCmd("next_wallpaper")
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.sendCmd("next_wallpaper");
+                                                window.showToast("Cambiando fondo de pantalla...");
+                                            }
                                         }
                                     }
 
                                     Rectangle {
-                                        Layout.fillWidth: true
-                                        height: 36
-                                        radius: 8
-                                        color: "#1e293b"
-                                        border.color: "#334155"
-                                        border.width: 1
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "󰸉 Abrir Carpeta en Dolphin"
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 11
-                                            font.weight: Font.Bold
-                                            color: "#f8fafc"
-                                        }
+                                        Layout.fillWidth: true; height: 36; radius: 8; color: "#1e293b"; border.color: "#334155"; border.width: 1
+                                        Text { anchors.centerIn: parent; text: "󰸉 Abrir Carpeta en Dolphin"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#f8fafc" }
                                         MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: window.sendCmd("open_wallpapers")
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                window.sendCmd("open_wallpapers");
+                                                window.showToast("Abriendo ~/Imágenes/Wallpapers/...");
+                                            }
                                         }
                                     }
                                 }
@@ -1511,6 +1708,30 @@ ApplicationWindow {
                                 }
                             }
                         }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 42
+                            radius: 10
+                            color: "#1e293b"
+                            border.color: "#38bdf8"
+                            border.width: 1
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 8
+                                Text { text: "󰑓"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: "#38bdf8" }
+                                Text { text: "Reiniciar Servicio Demonio (serpanplasma-daemon)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    window.sendCmd("restart_daemon");
+                                    window.showToast("Reiniciando servicio del demonio...");
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1525,7 +1746,7 @@ ApplicationWindow {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 220
+                            height: 240
                             radius: 14
                             color: "#0f172a"
                             border.color: "#1e293b"
@@ -1575,6 +1796,31 @@ ApplicationWindow {
                                     font.family: "JetBrainsMono Nerd Font"
                                     font.pixelSize: 10
                                     color: "#94a3b8"
+                                }
+
+                                Rectangle {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    height: 32
+                                    radius: 8
+                                    color: "#1e293b"
+                                    border.color: "#38bdf8"
+                                    border.width: 1
+                                    implicitWidth: gitRow.implicitWidth + 24
+
+                                    RowLayout {
+                                        id: gitRow
+                                        anchors.centerIn: parent
+                                        spacing: 8
+                                        Text { text: "󰊤"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: "#38bdf8" }
+                                        Text { text: "github.com/jorjanion/Serpanplasma"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#f8fafc" }
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            window.sendCmd("open_url", "https://github.com/jorjanion/Serpanplasma");
+                                            window.showToast("Abriendo repositorio de GitHub...");
+                                        }
+                                    }
                                 }
                             }
                         }

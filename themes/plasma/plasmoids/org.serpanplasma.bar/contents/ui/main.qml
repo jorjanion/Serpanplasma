@@ -28,6 +28,15 @@ PlasmoidItem {
         property string networkIcon: "󰤨"
         property string volumeIcon: "󰕾"
         property string lang: "EN"
+        property bool modSettings: true
+        property bool modWorkspaces: true
+        property bool modMedia: true
+        property bool modClock: true
+        property bool modWeather: true
+        property bool modVolume: true
+        property bool modNetwork: true
+        property bool modBattery: true
+        property bool modPower: true
 
         function updateDateTime() {
             var now = new Date();
@@ -66,6 +75,15 @@ PlasmoidItem {
                         if (data.network_icon !== undefined) barContainer.networkIcon = data.network_icon;
                         if (data.volume_icon !== undefined) barContainer.volumeIcon = data.volume_icon;
                         if (data.lang !== undefined) barContainer.lang = data.lang;
+                        if (data.bar_mod_settings !== undefined) barContainer.modSettings = data.bar_mod_settings;
+                        if (data.bar_mod_workspaces !== undefined) barContainer.modWorkspaces = data.bar_mod_workspaces;
+                        if (data.bar_mod_media !== undefined) barContainer.modMedia = data.bar_mod_media;
+                        if (data.bar_mod_clock !== undefined) barContainer.modClock = data.bar_mod_clock;
+                        if (data.bar_mod_weather !== undefined) barContainer.modWeather = data.bar_mod_weather;
+                        if (data.bar_mod_volume !== undefined) barContainer.modVolume = data.bar_mod_volume;
+                        if (data.bar_mod_network !== undefined) barContainer.modNetwork = data.bar_mod_network;
+                        if (data.bar_mod_battery !== undefined) barContainer.modBattery = data.bar_mod_battery;
+                        if (data.bar_mod_power !== undefined) barContainer.modPower = data.bar_mod_power;
                     } catch (e) {}
                 }
             };
@@ -115,6 +133,7 @@ PlasmoidItem {
                 // Settings / Launcher Button
                 Rectangle {
                     id: gearBtn
+                    visible: barContainer.modSettings
                     width: 30
                     height: 30
                     radius: 9
@@ -144,6 +163,7 @@ PlasmoidItem {
                 // Workspaces (Active pill + 7 dots)
                 Row {
                     id: wsRow
+                    visible: barContainer.modWorkspaces
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 7
 
@@ -182,6 +202,7 @@ PlasmoidItem {
                 // Media Player Capsule
                 Rectangle {
                     id: mediaPill
+                    visible: barContainer.modMedia
                     height: 30
                     radius: 10
                     color: "#1e293b"
@@ -281,6 +302,7 @@ PlasmoidItem {
 
                 // Stacked Clock
                 Column {
+                    visible: barContainer.modClock
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: -2
 
@@ -305,6 +327,7 @@ PlasmoidItem {
 
                 // Weather
                 Row {
+                    visible: barContainer.modWeather
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 6
 
@@ -337,6 +360,7 @@ PlasmoidItem {
                 // Volume
                 Rectangle {
                     id: volBtn
+                    visible: barContainer.modVolume
                     width: 32
                     height: 28
                     radius: 8
@@ -390,6 +414,7 @@ PlasmoidItem {
                 // Network (SOLID WHITE CAPSULE)
                 Rectangle {
                     id: netPill
+                    visible: barContainer.modNetwork
                     height: 28
                     radius: 10
                     color: "#f8fafc"
@@ -423,6 +448,7 @@ PlasmoidItem {
                 // Battery (SOLID WHITE CAPSULE)
                 Rectangle {
                     id: batPill
+                    visible: barContainer.modBattery
                     height: 28
                     radius: 10
                     color: "#f8fafc"
@@ -456,6 +482,7 @@ PlasmoidItem {
                 // Power button
                 Rectangle {
                     id: powerBtn
+                    visible: barContainer.modPower
                     width: 28
                     height: 28
                     radius: 14

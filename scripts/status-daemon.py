@@ -2,7 +2,7 @@
 """
 Serpanplasma Status & Settings Daemon
 Ultra-lightweight background daemon that queries system metrics (workspaces, media, battery, network, volume, weather)
-and provides command execution for the Serpanplasma Top Bar and Guide/Settings Dashboard.
+and provides real-time command execution for the Serpanplasma Top Bar, Dock and Settings Dashboard.
 """
 
 import http.server
@@ -14,6 +14,73 @@ import time
 import urllib.parse
 
 PORT = 19842
+HOME = os.path.expanduser("~")
+SETTINGS_FILE = os.path.join(HOME, ".config", "serpanplasma", "settings.json")
+
+DEFAULT_SETTINGS = {
+    "bar_floating": True,
+    "bar_height": 38,
+    "bar_opacity": 85,
+    "bar_distinct_pills": True,
+    "bar_mod_settings": True,
+    "bar_mod_workspaces": True,
+    "bar_mod_media": True,
+    "bar_mod_clock": True,
+    "bar_mod_weather": True,
+    "bar_mod_volume": True,
+    "bar_mod_network": True,
+    "bar_mod_battery": True,
+    "bar_mod_power": True,
+    "dock_enabled": True,
+    "dock_position": "bottom",
+    "dock_floating": True,
+    "dock_layer_top": False,
+    "dock_exclusive": True,
+    "dock_height": 54,
+    "dock_opacity": 90,
+    "hover_scale": 115,
+    "cascade_scale": False,
+    "scrolling": False,
+    "visible_elements": 8,
+    "dock_visibility": "dodgewindows",
+    "smart_focus": True,
+    "running_indicators": True,
+    "show_all_tasks": True,
+    "active_scope": "current",
+    "color_scheme": "Serpanplasma-Obsidian",
+    "wallpaper_interval": 900
+}
+
+lock = threading.Lock()
+settings = dict(DEFAULT_SETTINGS)
+
+def load_settings():
+    global settings
+    try:
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, "r") as f:
+                loaded = json.load(f)
+                settings.update(loaded)
+        else:
+            os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+            with open(SETTINGS_FILE, "w") as f:
+                json.dump(settings, f, indent=2)
+    except Exception:
+        pass
+
+def save_setting(key, value):
+    global settings
+    with lock:
+        settings[key] = value
+        try:
+            os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+            with open(SETTINGS_FILE, "w") as f:
+                json.dump(settings, f, indent=2)
+        except Exception:
+            pass
+
+load_settings()
+
 state = {
     "media_title": "No hay nada reprc",
     "media_artist": "",
@@ -33,18 +100,27 @@ state = {
     "volume": 75,
     "volume_icon": "󰕾",
     "volume_muted": False,
-    "lang": "EN",
-    "bar_height": 38,
-    "dock_height": 54,
-    "wallpaper_interval": 900
+    "lang": "ES"
 }
 
-lock = threading.Lock()
 last_weather_fetch = 0
 
 def run_cmd(args):
     try:
         res = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=1.5)
+        return res.stdout.strip()
+    except Exception:
+        return ""
+
+def eval_plasma_script(js_code):
+    try:
+        res = subprocess.run(
+            ["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", js_code],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=2.0
+        )
         return res.stdout.strip()
     except Exception:
         return ""
@@ -185,7 +261,7 @@ def update_lang():
             state["lang"] = layout.upper()[:2]
     else:
         with lock:
-            state["lang"] = "EN"
+            state["lang"] = "ES"
 
 def background_poller():
     while True:
@@ -213,16 +289,19 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             with lock:
-                payload = json.dumps(state).encode("utf-8")
+                combined = dict(state)
+                combined.update(settings)
+                payload = json.dumps(combined).encode("utf-8")
             self.wfile.write(payload)
 
         elif path == "/cmd":
             action = params.get("action", [""])[0]
             val = params.get("val", [""])[0]
+            mod = params.get("mod", [""])[0]
             home = os.path.expanduser("~")
 
+            # --- System Controls ---
             if action == "settings":
-                # Toggle Settings / Guide window
                 qml_path = os.path.join(home, ".local/share/serpanplasma/guide/SettingsWindow.qml")
                 check = subprocess.run(["pgrep", "-f", "SettingsWindow.qml"], stdout=subprocess.PIPE, text=True)
                 if check.stdout.strip():
@@ -249,24 +328,209 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             elif action == "vol_mute":
                 subprocess.Popen(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
 
-            # Settings Window Actions
+            # --- DOCK CONTROLS ---
+            elif action == "set_dock_floating":
+                is_float = (val.lower() in ("true", "1", "yes"))
+                js_val = "true" if is_float else "false"
+                eval_plasma_script(f'''
+                    var p = panels();
+                    for (var i = 0; i < p.length; i++) {{
+                        if (p[i].id === 82 || p[i].location === "bottom" || p[i].location === "left" || p[i].location === "right" || (p[i].height > 45 && p[i].location !== "top")) {{
+                            p[i].floating = {js_val};
+                        }}
+                    }}
+                ''')
+                subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "82", "--key", "floating", "--type", "bool", js_val])
+                save_setting("dock_floating", is_float)
+
+            elif action == "set_dock_enabled":
+                is_en = (val.lower() in ("true", "1", "yes"))
+                hiding_val = settings.get("dock_visibility", "dodgewindows") if is_en else "autohide"
+                eval_plasma_script(f'''
+                    var p = panels();
+                    for (var i = 0; i < p.length; i++) {{
+                        if (p[i].id === 82 || p[i].location === "bottom" || (p[i].height > 45 && p[i].location !== "top")) {{
+                            p[i].hiding = "{hiding_val}";
+                        }}
+                    }}
+                ''')
+                save_setting("dock_enabled", is_en)
+
+            elif action == "set_dock_position" and val:
+                loc = val.lower()
+                eval_plasma_script(f'''
+                    var p = panels();
+                    for (var i = 0; i < p.length; i++) {{
+                        if (p[i].id === 82 || p[i].location === "bottom" || p[i].location === "left" || p[i].location === "right") {{
+                            if (p[i].location !== "top") {{
+                                p[i].location = "{loc}";
+                            }}
+                        }}
+                    }}
+                ''')
+                loc_id = "4" if loc == "bottom" else ("1" if loc == "left" else "2")
+                subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "82", "--key", "location", loc_id])
+                save_setting("dock_position", loc)
+
+            elif action == "set_dock_visibility" and val:
+                # Plasma 6 supports: "dodgewindows", "autohide", "none"
+                eval_plasma_script(f'''
+                    var p = panels();
+                    for (var i = 0; i < p.length; i++) {{
+                        if (p[i].id === 82 || p[i].location === "bottom" || (p[i].height > 45 && p[i].location !== "top")) {{
+                            p[i].hiding = "{val}";
+                        }}
+                    }}
+                ''')
+                save_setting("dock_visibility", val)
+
+            elif action == "set_dock_layer":
+                is_top = (val.lower() in ("true", "1", "yes"))
+                hiding_val = "none" if is_top else settings.get("dock_visibility", "dodgewindows")
+                eval_plasma_script(f'''
+                    var p = panels();
+                    for (var i = 0; i < p.length; i++) {{
+                        if (p[i].id === 82 || p[i].location === "bottom" || (p[i].height > 45 && p[i].location !== "top")) {{
+                            p[i].hiding = "{hiding_val}";
+                        }}
+                    }}
+                ''')
+                save_setting("dock_layer_top", is_top)
+
+            elif action == "set_dock_exclusive":
+                is_excl = (val.lower() in ("true", "1", "yes"))
+                save_setting("dock_exclusive", is_excl)
+
+            elif action == "set_dock_height" and val:
+                try:
+                    h = int(val)
+                    eval_plasma_script(f'''
+                        var p = panels();
+                        for (var i = 0; i < p.length; i++) {{
+                            if (p[i].id === 82 || p[i].location === "bottom" || (p[i].height > 45 && p[i].location !== "top")) {{
+                                p[i].height = {h};
+                            }}
+                        }}
+                    ''')
+                    subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "82", "--key", "height", str(h)])
+                    save_setting("dock_height", h)
+                except Exception:
+                    pass
+
+            elif action == "set_dock_opacity" and val:
+                try:
+                    save_setting("dock_opacity", int(val))
+                except Exception:
+                    pass
+
+            elif action == "set_hover_scale" and val:
+                try:
+                    save_setting("hover_scale", int(val))
+                except Exception:
+                    pass
+
+            elif action == "set_cascade_scale":
+                save_setting("cascade_scale", val.lower() in ("true", "1", "yes"))
+
+            elif action == "set_scrolling":
+                save_setting("scrolling", val.lower() in ("true", "1", "yes"))
+
+            elif action == "set_visible_elements" and val:
+                try:
+                    save_setting("visible_elements", int(val))
+                except Exception:
+                    pass
+
+            elif action == "set_dock_smart_focus":
+                save_setting("smart_focus", val.lower() in ("true", "1", "yes"))
+
+            elif action == "set_dock_indicators":
+                save_setting("running_indicators", val.lower() in ("true", "1", "yes"))
+
+            elif action == "set_dock_tasks":
+                save_setting("show_all_tasks", val.lower() in ("true", "1", "yes"))
+
+            elif action == "set_dock_scope" and val:
+                save_setting("active_scope", val)
+                show_only = "true" if val == "current" else "false"
+                subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "82", "--group", "Applets", "--group", "83", "--group", "Configuration", "--group", "General", "--key", "showOnlyCurrentDesktop", "--type", "bool", show_only])
+
+            # --- TOP BAR CONTROLS ---
+            elif action == "set_bar_floating":
+                is_float = (val.lower() in ("true", "1", "yes"))
+                js_val = "true" if is_float else "false"
+                eval_plasma_script(f'''
+                    var p = panels();
+                    for (var i = 0; i < p.length; i++) {{
+                        if (p[i].id === 55 || p[i].location === "top" || p[i].height <= 45) {{
+                            p[i].floating = {js_val};
+                        }}
+                    }}
+                ''')
+                subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "55", "--key", "floating", "--type", "bool", js_val])
+                save_setting("bar_floating", is_float)
+
+            elif action == "set_bar_height" and val:
+                try:
+                    h = int(val)
+                    eval_plasma_script(f'''
+                        var p = panels();
+                        for (var i = 0; i < p.length; i++) {{
+                            if (p[i].id === 55 || p[i].location === "top" || p[i].height <= 45) {{
+                                p[i].height = {h};
+                            }}
+                        }}
+                    ''')
+                    subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "55", "--key", "height", str(h)])
+                    save_setting("bar_height", h)
+                except Exception:
+                    pass
+
+            elif action == "set_bar_opacity" and val:
+                try:
+                    save_setting("bar_opacity", int(val))
+                except Exception:
+                    pass
+
+            elif action == "set_distinct_pills":
+                save_setting("bar_distinct_pills", val.lower() in ("true", "1", "yes"))
+
+            elif action == "set_bar_module" and mod:
+                is_on = (val.lower() in ("true", "1", "yes"))
+                save_setting(f"bar_mod_{mod}", is_on)
+
+            # --- WALLPAPERS & THEMES ---
             elif action == "next_wallpaper":
-                script = '''
+                eval_plasma_script('''
                     var ds = desktops();
                     for (var i = 0; i < ds.length; i++) {
                         ds[i].currentConfigGroup = ["Wallpaper", "org.kde.slideshow", "General"];
                         var paths = ds[i].readConfig("SlidePaths");
                         ds[i].writeConfig("SlidePaths", paths);
                     }
-                '''
-                subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+                ''')
 
             elif action == "open_wallpapers":
                 wp_dir = os.path.join(home, "Imágenes", "Wallpapers")
                 subprocess.Popen(["xdg-open", wp_dir])
 
+            elif action == "set_wallpaper_interval" and val:
+                try:
+                    sec = int(val)
+                    save_setting("wallpaper_interval", sec)
+                    eval_plasma_script(f'''
+                        var ds = desktops();
+                        for (var i = 0; i < ds.length; i++) {{
+                            ds[i].currentConfigGroup = ["Wallpaper", "org.kde.slideshow", "General"];
+                            ds[i].writeConfig("SlideInterval", {sec});
+                        }}
+                    ''')
+                except Exception:
+                    pass
+
             elif action == "apply_colorscheme" and val:
                 subprocess.run(["plasma-apply-colorscheme", val])
+                save_setting("color_scheme", val)
 
             elif action == "restart_kwin":
                 subprocess.run(["qdbus6", "org.kde.KWin", "/KWin", "reconfigure"])
@@ -274,86 +538,11 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             elif action == "restart_plasma":
                 subprocess.run(["systemctl", "--user", "restart", "plasma-plasmashell.service"])
 
-            elif action == "open_url" and val:
-                subprocess.Popen(["xdg-open", val])
-
-            elif action == "set_bar_height" and val:
-                try:
-                    h = int(val)
-                    with lock:
-                        state["bar_height"] = h
-                    script = f'''
-                        var p = panels();
-                        for (var i = 0; i < p.length; i++) {{
-                            if (p[i].location === "top") {{
-                                p[i].height = {h};
-                            }}
-                        }}
-                    '''
-                    subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
-                except Exception:
-                    pass
-
-            elif action == "set_dock_height" and val:
-                try:
-                    h = int(val)
-                    with lock:
-                        state["dock_height"] = h
-                    script = f'''
-                        var p = panels();
-                        for (var i = 0; i < p.length; i++) {{
-                            if (p[i].location === "bottom") {{
-                                p[i].height = {h};
-                            }}
-                        }}
-                    '''
-                    subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
-                except Exception:
-                    pass
-
-            elif action == "set_dock_position" and val:
-                script = f'''
-                    var p = panels();
-                    for (var i = 0; i < p.length; i++) {{
-                        if (p[i].location === "bottom" || p[i].location === "left" || p[i].location === "right" || p[i].location === "top") {{
-                            if (p[i].height > 45) {{
-                                p[i].location = "{val}";
-                            }}
-                        }}
-                    }}
-                '''
-                subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
-
-            elif action == "set_dock_visibility" and val:
-                # Plasma 6 panel visibility: "none" (always), "autohide", "windowsCanCover" (dodge windows)
-                script = f'''
-                    var p = panels();
-                    for (var i = 0; i < p.length; i++) {{
-                        if (p[i].location === "bottom") {{
-                            p[i].hiding = "{val}";
-                        }}
-                    }}
-                '''
-                subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
-
-            elif action == "set_wallpaper_interval" and val:
-                try:
-                    sec = int(val)
-                    with lock:
-                        state["wallpaper_interval"] = sec
-                    script = f'''
-                        var ds = desktops();
-                        for (var i = 0; i < ds.length; i++) {{
-                            ds[i].currentConfigGroup = ["Wallpaper", "org.kde.slideshow", "General"];
-                            ds[i].writeConfig("SlideInterval", {sec});
-                        }}
-                    '''
-                    subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
-                except Exception:
-                    pass
-
             elif action == "restart_daemon":
                 subprocess.Popen(["systemctl", "--user", "restart", "serpanplasma-daemon.service"])
+
+            elif action == "open_url" and val:
+                subprocess.Popen(["xdg-open", val])
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
