@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Serpanplasma Status Daemon
+Comment=Background system status worker for Serpanplasma Top Bar
+Exec=/bin/sh -c 'python3 "$HOME/.local/share/serpanplasma/scripts/status-daemon.py"'
+Icon=utilities-system-monitor
+Terminal=false
+Categories=Utility;
+StartupNotify=false
+X-KDE-autostart-phase=1

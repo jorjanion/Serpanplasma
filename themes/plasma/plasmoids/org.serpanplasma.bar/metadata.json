@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Serpanplasma",
+                "Email": "jorge@titoonion.duckdns.org"
+            }
+        ],
+        "Category": "Windows and Tasks",
+        "Description": "Exact Serpantinum Bar for KDE Plasma 6",
+        "Id": "org.serpanplasma.bar",
+        "License": "GPL-3.0-or-later",
+        "Name": "Serpanplasma Bar",
+        "Version": "1.0",
+        "Website": "https://github.com/jorjanion/Serpanplasma"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

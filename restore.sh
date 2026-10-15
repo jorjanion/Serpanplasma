@@ -27,6 +27,18 @@ cat << "EOF"
 EOF
 echo -e "${RESET}"
 
+# 1. Stop and disable background service
+echo -e "${CYAN}==>${RESET} Deteniendo servicio de estado de Serpanplasma..."
+if systemctl --user is-active --quiet serpanplasma-daemon.service; then
+    systemctl --user stop serpanplasma-daemon.service 2>/dev/null || true
+    systemctl --user disable serpanplasma-daemon.service 2>/dev/null || true
+fi
+pkill -f "status-daemon.py" 2>/dev/null || true
+rm -f "$HOME/.config/systemd/user/serpanplasma-daemon.service" 2>/dev/null || true
+rm -f "$HOME/.config/autostart/serpanplasma-daemon.desktop" 2>/dev/null || true
+systemctl --user daemon-reload 2>/dev/null || true
+
+# 2. Check backups
 if [ ! -d "$BACKUP_ROOT" ] || [ -z "$(ls -A "$BACKUP_ROOT" 2>/dev/null)" ]; then
     echo -e "${RED}[ERROR]${RESET} No se encontró ninguna copia de seguridad en $BACKUP_ROOT."
     exit 1
@@ -50,7 +62,12 @@ for f in "$LATEST_BACKUP"/*; do
     fi
 done
 
-# Revert color scheme and desktop theme to defaults
+# 3. Remove custom plasmoid and themes
+rm -rf "$HOME/.local/share/plasma/plasmoids/org.serpanplasma.bar" 2>/dev/null || true
+rm -rf "$HOME/.local/share/plasma/desktoptheme/Serpanplasma" 2>/dev/null || true
+rm -rf "$HOME/.local/share/serpanplasma" 2>/dev/null || true
+
+# 4. Revert color scheme and desktop theme to defaults
 if command -v plasma-apply-colorscheme &>/dev/null; then
     plasma-apply-colorscheme BreezeDark >/dev/null 2>&1 || true
 fi
@@ -59,7 +76,7 @@ if command -v plasma-apply-desktoptheme &>/dev/null; then
     plasma-apply-desktoptheme default >/dev/null 2>&1 || true
 fi
 
-# Reconfigure KWin and restart PlasmaShell
+# 5. Reconfigure KWin and restart PlasmaShell
 echo -e "${CYAN}==>${RESET} Reiniciando componentes de KDE Plasma..."
 if command -v qdbus6 &>/dev/null; then
     qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true

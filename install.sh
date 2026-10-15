@@ -176,37 +176,55 @@ fi
 mkdir -p "$HOME/.config/fastfetch"
 cp "$SCRIPT_DIR/configs/fastfetch/config.jsonc" "$HOME/.config/fastfetch/config.jsonc" 2>/dev/null || true
 
-# 13. Wallpaper Slideshow Setup
-echo -e "${CYAN}==>${RESET} Configurando fondos de pantalla (slideshow)..."
+# 13. Install Custom Plasmoid (org.serpanplasma.bar)
+echo -e "${CYAN}==>${RESET} Instalando plasmoide nativo Serpanplasma Bar..."
+PLASMOID_DIR="$HOME/.local/share/plasma/plasmoids/org.serpanplasma.bar"
+mkdir -p "$PLASMOID_DIR"
+cp -r "$SCRIPT_DIR/themes/plasma/plasmoids/org.serpanplasma.bar"/* "$PLASMOID_DIR/"
+
+# 14. Install and Start Status Daemon (Systemd service & autostart)
+echo -e "${CYAN}==>${RESET} Configurando demonio de estado en segundo plano..."
+DAEMON_DIR="$HOME/.local/share/serpanplasma/scripts"
+mkdir -p "$DAEMON_DIR" "$HOME/.config/systemd/user" "$HOME/.config/autostart"
+cp "$SCRIPT_DIR/scripts/status-daemon.py" "$DAEMON_DIR/"
+chmod +x "$DAEMON_DIR/status-daemon.py"
+
+cp "$SCRIPT_DIR/configs/systemd/serpanplasma-daemon.service" "$HOME/.config/systemd/user/"
+cp "$SCRIPT_DIR/configs/autostart/serpanplasma-daemon.desktop" "$HOME/.config/autostart/"
+
+if command -v systemctl &>/dev/null; then
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+    systemctl --user enable --now serpanplasma-daemon.service >/dev/null 2>&1 || true
+fi
+
+# 15. Wallpaper Slideshow & Clean Desktop Containment Setup
+echo -e "${CYAN}==>${RESET} Configurando fondos de pantalla y superficie de escritorio limpia..."
+sed -i 's/plugin=org.kde.plasma.folder/plugin=org.kde.desktopcontainment/g' "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc" 2>/dev/null || true
 if command -v qdbus6 &>/dev/null && [ -f "$SCRIPT_DIR/scripts/setup-wallpapers.js" ]; then
     qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$(cat "$SCRIPT_DIR/scripts/setup-wallpapers.js")" >/dev/null 2>&1 || true
 fi
 
-# 14. Top Floating Bar Layout Setup
-echo -e "${CYAN}==>${RESET} Creando la Barra Superior Flotante con Píldoras (Top Bar)..."
+# 16. Top Floating Bar Layout & Bottom Floating Dock Setup
+echo -e "${CYAN}==>${RESET} Configurando barra superior flotante y dock de aplicaciones..."
 if command -v qdbus6 &>/dev/null && [ -f "$SCRIPT_DIR/scripts/setup-panel.js" ]; then
     qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$(cat "$SCRIPT_DIR/scripts/setup-panel.js")" >/dev/null 2>&1 || true
-    
-    # Configure floating panel length and padding
-    sleep 1
-    qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript '
-        var p = panels();
-        for (var i = 0; i < p.length; i++) {
-            p[i].floating = true;
-            p[i].height = 42;
-            p[i].alignment = "center";
-        }
-    ' >/dev/null 2>&1 || true
+fi
+
+# 17. Reload PlasmaShell to apply all visual components
+echo -e "${CYAN}==>${RESET} Recargando entorno de escritorio Plasma..."
+if systemctl --user is-active --quiet plasma-plasmashell.service; then
+    systemctl --user restart plasma-plasmashell.service >/dev/null 2>&1 || true
 fi
 
 echo -e "\n${GREEN}${BOLD}¡Instalación de Serpanplasma completada con éxito!${RESET}"
 echo -e "${CYAN}─────────────────────────────────────────────────────────────────${RESET}"
-echo -e "  • ${BOLD}Barra Superior Flotante:${RESET}   Panel flotante con esquinas redondeadas y blur."
-echo -e "  • ${BOLD}Widgets:${RESET}                  Lanzador minimalista, Media player, Reloj digital centrado"
-echo -e "                             con fecha en español, Clima, Volumen, Red, Batería y Bandeja."
+echo -e "  • ${BOLD}Barra Superior Flotante:${RESET}   Panel flotante con píldoras de Serpantinum."
+echo -e "  • ${BOLD}Widgets de la Barra:${RESET}       Ajustes/Lanzador, Espacios de trabajo (Pills), Reproductor multimedia,"
+echo -e "                             Reloj apilado en español, Clima en vivo, Volumen, Idioma, Red y Batería (Píldoras blancas) y Botón de apagado."
+echo -e "  • ${BOLD}Dock de Aplicaciones:${RESET}      Panel flotante inferior centrado con iconos de tareas."
 echo -e "  • ${BOLD}Gestión de Ventanas:${RESET}       Ventanas flotantes, centradas, click-to-raise,"
 echo -e "                             atajos Windows (Alt+F4, Alt+Tab, Win+Up, Win+Down, Win+E)."
-echo -e "  • ${BOLD}Esquema de Colores:${RESET}        Obsidian Palette (#0f172a, #1e293b, #38bdf8)."
+echo -e "  • ${BOLD}Esquema de Colores:${RESET}        Obsidian Palette (#0f172a / #1e293b / #38bdf8)."
 echo -e "  • ${BOLD}Tipografía:${RESET}                JetBrains Mono SemiBold."
 echo -e "  • ${BOLD}Copia de seguridad:${RESET}        Guardada en $BACKUP_DIR"
 echo -e "  • ${BOLD}Desinstalación:${RESET}            Ejecuta ./restore.sh para revertir los cambios."
