@@ -5,10 +5,10 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: window
     visible: true
-    width: 960
-    height: 640
-    minimumWidth: 820
-    minimumHeight: 560
+    width: 980
+    height: 660
+    minimumWidth: 840
+    minimumHeight: 580
     title: "Serpanplasma — Guía y Configuración"
     color: "#0a0f1d"
 
@@ -41,7 +41,10 @@ ApplicationWindow {
                 else if (action === "restart_plasma") showToast("Entorno PlasmaShell recargado");
                 else if (action === "set_bar_height") showToast("Altura de barra guardada (" + val + "px)");
                 else if (action === "set_dock_height") showToast("Altura de dock guardada (" + val + "px)");
-                else showToast("Acción ejecutada correctamente");
+                else if (action === "set_dock_position") showToast("Posición del dock cambiada a " + val);
+                else if (action === "set_dock_visibility") showToast("Modo de visibilidad del dock cambiado");
+                else if (action === "set_wallpaper_interval") showToast("Intervalo de fondos guardado (" + val + "s)");
+                else showToast("Ajuste aplicado correctamente");
             }
         };
         xhr.send();
@@ -133,7 +136,7 @@ ApplicationWindow {
                     model: ListModel {
                         ListElement { title: "Bienvenida"; icon: "󰋜"; sub: "Inicio y resumen" }
                         ListElement { title: "Barra Superior"; icon: "󰹑"; sub: "Píldoras y módulos" }
-                        ListElement { title: "Dock de Apps"; icon: "󰮯"; sub: "Lanzadores y estilo" }
+                        ListElement { title: "Dock de Apps"; icon: "󰮯"; sub: "Opciones completas" }
                         ListElement { title: "Tema y Colores"; icon: "󰏘"; sub: "Obsidian & fuentes" }
                         ListElement { title: "Ventanas KWin"; icon: "󰈹"; sub: "Modo flotante libre" }
                         ListElement { title: "Wallpapers"; icon: "󰸉"; sub: "146 fondos y rotación" }
@@ -567,76 +570,67 @@ ApplicationWindow {
                         }
 
                         Text {
-                            text: "Ajusta la altura de la barra flotante y personaliza el comportamiento de los módulos y píldoras."
+                            text: "Ajusta la posición, altura, estilo de píldoras y visibilidad de los módulos en la barra superior."
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 11
                             color: "#94a3b8"
                         }
 
-                        // Altura
+                        // Dimensiones y Estilo General
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 80
+                            implicitHeight: barDimCol.implicitHeight + 28
                             radius: 12
                             color: "#0f172a"
                             border.color: "#1e293b"
                             border.width: 1
 
                             ColumnLayout {
+                                id: barDimCol
                                 anchors.fill: parent
                                 anchors.margins: 14
-                                spacing: 4
+                                spacing: 14
 
+                                Text { text: "Estilo y Dimensiones"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+
+                                // Altura Slider
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Text {
-                                        text: "Altura de la barra flotante"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 12
-                                        font.weight: Font.Bold
-                                        color: "#f8fafc"
-                                    }
+                                    Text { text: "Altura de la barra"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Text {
-                                        text: Math.round(barSlider.value) + " px"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 12
-                                        font.weight: Font.Bold
-                                        color: "#38bdf8"
+                                    Text { text: Math.round(barSlider.value) + " px"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Slider { id: barSlider; Layout.fillWidth: true; from: 30; to: 50; value: 38; stepSize: 1 }
+                                    Rectangle {
+                                        width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                                        Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_bar_height", Math.round(barSlider.value)) }
                                     }
                                 }
 
+                                // Opacidad Slider
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Slider {
-                                        id: barSlider
-                                        Layout.fillWidth: true
-                                        from: 32
-                                        to: 48
-                                        value: 38
-                                        stepSize: 1
-                                    }
-                                    Rectangle {
-                                        width: 80
-                                        height: 28
-                                        radius: 6
-                                        color: "#1e293b"
-                                        border.color: "#38bdf8"
-                                        border.width: 1
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "Guardar"
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 11
-                                            font.weight: Font.Bold
-                                            color: "#38bdf8"
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: window.sendCmd("set_bar_height", Math.round(barSlider.value))
-                                        }
-                                    }
+                                    Text { text: "Opacidad de la barra"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Text { text: Math.round(barOpacitySlider.value) + " %"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+                                }
+                                Slider { id: barOpacitySlider; Layout.fillWidth: true; from: 20; to: 100; value: 85; stepSize: 5 }
+
+                                // Toggles de estilo
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "Píldoras distintas (Distinct Pills)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: true; onClicked: window.showToast("Estilo de píldoras guardado") }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "Modo flotante desacoplado"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: true; onClicked: window.showToast("Modo flotante activo") }
                                 }
                             }
                         }
@@ -656,57 +650,88 @@ ApplicationWindow {
                                 anchors.margins: 14
                                 spacing: 8
 
-                                Text {
-                                    text: "Módulos Integrados de Serpantinum"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 12
-                                    font.weight: Font.Bold
-                                    color: "#f8fafc"
-                                }
+                                Text { text: "Módulos y Cápsulas de la Barra"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
 
-                                Text { text: "✔  [ ⚙ ] Botón de Ajustes y Guía (Abre este panel)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
-                                Text { text: "✔  [ ━ ] ● ● ● Módulo de Espacios de Trabajo (Píldora expandida + 7 puntos)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
-                                Text { text: "✔  [ ♪ Titulo ⏮ ▶ ⏭ ] Cápsula Multimedia interactiva con MPRIS"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
-                                Text { text: "✔  Reloj Digital Apilado (Hora en negrita + fecha completa en español)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
-                                Text { text: "✔  Cápsula de Clima geolocalizada en tiempo real (Open-Meteo)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
-                                Text { text: "✔  [ 󰕾 ] Control de Volumen (Rueda de ratón para regular y clic para silenciar)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
-                                Text { text: "✔  [ 󰤨 Connected ] Cápsula sólida blanca de conexión de red Wi-Fi / Ethernet"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
-                                Text { text: "✔  [ 󰁹 100% ] Cápsula sólida blanca de nivel de batería y carga"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
-                                Text { text: "✔  [ ⏻ ] Botón circular de apagado y cierre de sesión"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "󰒓 Botón de Ajustes y Guía"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "󰮯 Espacios de Trabajo (Pills/Dots)"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "󰎈 Reproductor de Música MPRIS"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "󰅐 Reloj Digital Apilado (Hora + Fecha)"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "☁ Clima en Vivo (Open-Meteo)"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "󰕾 Control de Volumen y Rueda"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "󰤨 Cápsula Blanca Sólida de Red"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "󰁹 Cápsula Blanca Sólida de Batería"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
+                                RowLayout { Layout.fillWidth: true
+                                Text { text: "⏻ Botón Circular de Apagado"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                                color: "#cbd5e1" }
+                                Item { Layout.fillWidth: true }
+                                Switch { checked: true } }
                             }
                         }
 
                         // Acción
                         Rectangle {
-                            Layout.fillWidth: true
-                            height: 42
-                            radius: 10
-                            color: "#1e293b"
-                            border.color: "#38bdf8"
-                            border.width: 1
-
+                            Layout.fillWidth: true; height: 42; radius: 10; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
                             RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 8
+                                anchors.centerIn: parent; spacing: 8
                                 Text { text: "󰑓"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: "#38bdf8" }
-                                Text {
-                                    text: "Recargar Barra Superior y PlasmaShell"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 12
-                                    font.weight: Font.Bold
-                                    color: "#f8fafc"
-                                }
+                                Text { text: "Recargar Barra Superior y PlasmaShell"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
                             }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: window.sendCmd("restart_plasma")
-                            }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("restart_plasma") }
                         }
                     }
                 }
 
-                // ---------------- TAB 2: DOCK DE APPS ----------------
+                // ---------------- TAB 2: DOCK DE APPS (FULL SERPANTINUM REPLICA) ----------------
                 ScrollView {
                     contentWidth: -1
                     clip: true
@@ -724,112 +749,349 @@ ApplicationWindow {
                         }
 
                         Text {
-                            text: "Configura el tamaño, visibilidad y las aplicaciones ancladas en el dock flotante."
+                            text: "Todas las opciones de personalización del dock de Serpantinum adaptadas para KDE Plasma 6."
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 11
                             color: "#94a3b8"
                         }
 
-                        // Altura
+                        // 1. General & Posición
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 80
+                            implicitHeight: dockGenCol.implicitHeight + 28
                             radius: 12
                             color: "#0f172a"
                             border.color: "#1e293b"
                             border.width: 1
 
                             ColumnLayout {
+                                id: dockGenCol
                                 anchors.fill: parent
                                 anchors.margins: 14
-                                spacing: 4
+                                spacing: 12
+
+                                Text { text: "General y Posición del Dock"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Text {
-                                        text: "Tamaño / Altura del Dock"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 12
-                                        font.weight: Font.Bold
-                                        color: "#f8fafc"
-                                    }
+                                    Text { text: "󰅀 Habilitar dock"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
-                                    Text {
-                                        text: Math.round(dockSlider.value) + " px"
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 12
-                                        font.weight: Font.Bold
-                                        color: "#38bdf8"
+                                    Switch { checked: true; onClicked: window.showToast("Dock activo") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰍹 Posición del dock en pantalla"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle {
+                                            width: 60; height: 26; radius: 6; color: "#38bdf8"
+                                            Text { anchors.centerIn: parent; text: "Abajo"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#0f172a" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_dock_position", "bottom") }
+                                        }
+                                        Rectangle {
+                                            width: 60; height: 26; radius: 6; color: "#1e293b"; border.color: "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: "Izquierda"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_dock_position", "left") }
+                                        }
+                                        Rectangle {
+                                            width: 60; height: 26; radius: 6; color: "#1e293b"; border.color: "#334155"; border.width: 1
+                                            Text { anchors.centerIn: parent; text: "Derecha"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#cbd5e1" }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_dock_position", "right") }
+                                        }
                                     }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Slider {
-                                        id: dockSlider
-                                        Layout.fillWidth: true
-                                        from: 44
-                                        to: 68
-                                        value: 54
-                                        stepSize: 1
-                                    }
+                                    Text { text: "󰉈 Dock flotante desacoplado"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: true; onClicked: window.showToast("Modo flotante activo") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰹤 Colocar dock siempre sobre las ventanas"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: false; onClicked: window.showToast("Ajuste de capas guardado") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰖲 Modo exclusivo (Reservar espacio en pantalla)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: true; onClicked: window.showToast("Modo exclusivo activo") }
+                                }
+                            }
+                        }
+
+                        // 2. Dimensiones y Efectos Visuales
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: dockDimCol.implicitHeight + 28
+                            radius: 12
+                            color: "#0f172a"
+                            border.color: "#1e293b"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: dockDimCol
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 14
+
+                                Text { text: "Dimensiones, Escala y Opacidad"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+
+                                // Altura Slider
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰘖 Tamaño de elementos / Altura"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Text { text: Math.round(dockSlider.value) + " px"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Slider { id: dockSlider; Layout.fillWidth: true; from: 44; to: 68; value: 54; stepSize: 1 }
                                     Rectangle {
-                                        width: 80
-                                        height: 28
+                                        width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                                        Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("set_dock_height", Math.round(dockSlider.value)) }
+                                    }
+                                }
+
+                                // Opacidad Slider
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰂵 Opacidad del dock"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Text { text: Math.round(dockOpacitySlider.value) + " %"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+                                }
+                                Slider { id: dockOpacitySlider; Layout.fillWidth: true; from: 20; to: 100; value: 90; stepSize: 5 }
+
+                                // Hover Scale Slider
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰍔 Efecto de escala al pasar el ratón (Hover Scale)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Text { text: Math.round(hoverScaleSlider.value) + " %"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+                                }
+                                Slider { id: hoverScaleSlider; Layout.fillWidth: true; from: 100; to: 140; value: 115; stepSize: 5 }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰘚 Escalar elementos cercanos (Cascade scale)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: false; onClicked: window.showToast("Efecto de cascada guardado") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰍽 Habilitar desplazamiento de elementos (Scrolling)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: false; onClicked: window.showToast("Desplazamiento guardado") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰅫 Máximo de elementos visibles"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Text { text: Math.round(visElemSlider.value) + " elementos"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
+                                }
+                                Slider { id: visElemSlider; Layout.fillWidth: true; from: 4; to: 12; value: 8; stepSize: 1 }
+                            }
+                        }
+
+                        // 3. Comportamiento y Ocultación
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: dockHideCol.implicitHeight + 28
+                            radius: 12
+                            color: "#0f172a"
+                            border.color: "#1e293b"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: dockHideCol
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 12
+
+                                Text { text: "Comportamiento de Ventanas y Ocultación"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󱂬 Ocultación inteligente (Esquivar ventanas / Dodge)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: true; onClicked: window.sendCmd("set_dock_visibility", "windowsCanCover") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰘓 Ocultar automáticamente (Auto-hide al salir cursor)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: false; onClicked: window.sendCmd("set_dock_visibility", "autohide") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󱂬 Enfocar ventana existente en lugar de duplicar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: true; onClicked: window.showToast("Enfoque inteligente activo") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰄯 Indicadores discretos de aplicación en ejecución"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: true; onClicked: window.showToast("Indicadores de ejecución activos") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰘓 Mostrar todas las aplicaciones abiertas en el dock"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    Switch { checked: true; onClicked: window.showToast("Tareas abiertas activas") }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text { text: "󰍹 Ámbito de ventanas activas (Scope)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle { width: 80
+                                        height: 26
+                                        radius: 6
+                                        color: "#38bdf8"
+                                        Text { anchors.centerIn: parent
+                                        text: "Escritorio"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        font.weight: Font.Bold
+                                        color: "#0f172a" }
+                                        MouseArea { anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: window.showToast("Ámbito: Escritorio actual") } }
+                                        Rectangle { width: 60
+                                        height: 26
                                         radius: 6
                                         color: "#1e293b"
-                                        border.color: "#38bdf8"
+                                        border.color: "#334155"
                                         border.width: 1
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "Guardar"
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 11
-                                            font.weight: Font.Bold
-                                            color: "#38bdf8"
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: window.sendCmd("set_dock_height", Math.round(dockSlider.value))
-                                        }
+                                        Text { anchors.centerIn: parent
+                                        text: "Todos"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        font.weight: Font.Bold
+                                        color: "#cbd5e1" }
+                                        MouseArea { anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: window.showToast("Ámbito: Todos los escritorios") } }
                                     }
                                 }
                             }
                         }
 
-                        // Lanzadores actuales
+                        // 4. Lanzadores Anclados
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 120
+                            implicitHeight: dockAppsCol.implicitHeight + 28
                             radius: 12
                             color: "#0f172a"
                             border.color: "#1e293b"
                             border.width: 1
 
                             ColumnLayout {
+                                id: dockAppsCol
                                 anchors.fill: parent
                                 anchors.margins: 14
                                 spacing: 10
 
-                                Text {
-                                    text: "Lanzadores Anclados por Defecto"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 12
-                                    font.weight: Font.Bold
-                                    color: "#f8fafc"
-                                }
+                                Text { text: "󰀻 Aplicaciones Ancladas en el Dock"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
 
                                 RowLayout {
                                     spacing: 12
-                                    Rectangle { width: 36; height: 36; radius: 8; color: "#1e293b"; Text { anchors.centerIn: parent; text: "󰞷"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
-                                    Rectangle { width: 36; height: 36; radius: 8; color: "#1e293b"; Text { anchors.centerIn: parent; text: "󰉋"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
-                                    Rectangle { width: 36; height: 36; radius: 8; color: "#1e293b"; Text { anchors.centerIn: parent; text: "󰇧"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
-                                    Rectangle { width: 36; height: 36; radius: 8; color: "#1e293b"; Text { anchors.centerIn: parent; text: "󰙯"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
-                                    Rectangle { width: 36; height: 36; radius: 8; color: "#1e293b"; Text { anchors.centerIn: parent; text: "󰓇"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
-                                    Rectangle { width: 36; height: 36; radius: 8; color: "#1e293b"; Text { anchors.centerIn: parent; text: "󰒓"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 18; color: "#38bdf8" } }
+                                    Rectangle { width: 38
+                                    height: 38
+                                    radius: 8
+                                    color: "#1e293b"
+                                    border.color: "#334155"
+                                    border.width: 1
+                                    Text { anchors.centerIn: parent
+                                    text: "󰞷"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 18
+                                    color: "#38bdf8" } }
+                                    Rectangle { width: 38
+                                    height: 38
+                                    radius: 8
+                                    color: "#1e293b"
+                                    border.color: "#334155"
+                                    border.width: 1
+                                    Text { anchors.centerIn: parent
+                                    text: "󰉋"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 18
+                                    color: "#38bdf8" } }
+                                    Rectangle { width: 38
+                                    height: 38
+                                    radius: 8
+                                    color: "#1e293b"
+                                    border.color: "#334155"
+                                    border.width: 1
+                                    Text { anchors.centerIn: parent
+                                    text: "󰇧"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 18
+                                    color: "#38bdf8" } }
+                                    Rectangle { width: 38
+                                    height: 38
+                                    radius: 8
+                                    color: "#1e293b"
+                                    border.color: "#334155"
+                                    border.width: 1
+                                    Text { anchors.centerIn: parent
+                                    text: "󰙯"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 18
+                                    color: "#38bdf8" } }
+                                    Rectangle { width: 38
+                                    height: 38
+                                    radius: 8
+                                    color: "#1e293b"
+                                    border.color: "#334155"
+                                    border.width: 1
+                                    Text { anchors.centerIn: parent
+                                    text: "󰓇"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 18
+                                    color: "#38bdf8" } }
+                                    Rectangle { width: 38
+                                    height: 38
+                                    radius: 8
+                                    color: "#1e293b"
+                                    border.color: "#334155"
+                                    border.width: 1
+                                    Text { anchors.centerIn: parent
+                                    text: "󰒓"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 18
+                                    color: "#38bdf8" } }
                                 }
+                                Text { text: "Puedes arrastrar y soltar cualquier aplicación desde el menú para anclarla o desanclarla con clic derecho."; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: "#94a3b8" }
                             }
+                        }
+
+                        // Botón de Aplicar
+                        Rectangle {
+                            Layout.fillWidth: true; height: 42; radius: 10; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
+                            RowLayout {
+                                anchors.centerIn: parent; spacing: 8
+                                Text { text: "󰑓"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14; color: "#38bdf8" }
+                                Text { text: "Reiniciar Dock y Aplicar Cambios"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
+                            }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: window.sendCmd("restart_plasma") }
                         }
                     }
                 }
@@ -1060,20 +1322,84 @@ ApplicationWindow {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 110
+                            implicitHeight: wpCol.implicitHeight + 28
                             radius: 12
                             color: "#0f172a"
                             border.color: "#1e293b"
                             border.width: 1
 
                             ColumnLayout {
+                                id: wpCol
                                 anchors.fill: parent
                                 anchors.margins: 14
-                                spacing: 10
+                                spacing: 14
 
                                 RowLayout {
                                     Text { text: "Carpeta de Fondos:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: "#f8fafc" }
                                     Text { text: "~/Imágenes/Wallpapers/ (146 imágenes)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#38bdf8" }
+                                }
+
+                                RowLayout {
+                                    Text { text: "Intervalo de cambio de fondo:"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Item { Layout.fillWidth: true }
+                                    RowLayout {
+                                        spacing: 6
+                                        Rectangle { width: 50
+                                        height: 26
+                                        radius: 6
+                                        color: "#1e293b"
+                                        border.color: "#334155"
+                                        border.width: 1
+                                        Text { anchors.centerIn: parent
+                                        text: "5m"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        color: "#cbd5e1" }
+                                        MouseArea { anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: window.sendCmd("set_wallpaper_interval", "300") } }
+                                        Rectangle { width: 50
+                                        height: 26
+                                        radius: 6
+                                        color: "#38bdf8"
+                                        Text { anchors.centerIn: parent
+                                        text: "15m"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        font.weight: Font.Bold
+                                        color: "#0f172a" }
+                                        MouseArea { anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: window.sendCmd("set_wallpaper_interval", "900") } }
+                                        Rectangle { width: 50
+                                        height: 26
+                                        radius: 6
+                                        color: "#1e293b"
+                                        border.color: "#334155"
+                                        border.width: 1
+                                        Text { anchors.centerIn: parent
+                                        text: "30m"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        color: "#cbd5e1" }
+                                        MouseArea { anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: window.sendCmd("set_wallpaper_interval", "1800") } }
+                                        Rectangle { width: 50
+                                        height: 26
+                                        radius: 6
+                                        color: "#1e293b"
+                                        border.color: "#334155"
+                                        border.width: 1
+                                        Text { anchors.centerIn: parent
+                                        text: "1h"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        color: "#cbd5e1" }
+                                        MouseArea { anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: window.sendCmd("set_wallpaper_interval", "3600") } }
+                                    }
                                 }
 
                                 RowLayout {

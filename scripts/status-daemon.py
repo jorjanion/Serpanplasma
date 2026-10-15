@@ -311,6 +311,50 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
+            elif action == "set_dock_position" and val:
+                script = f'''
+                    var p = panels();
+                    for (var i = 0; i < p.length; i++) {{
+                        if (p[i].location === "bottom" || p[i].location === "left" || p[i].location === "right" || p[i].location === "top") {{
+                            if (p[i].height > 45) {{
+                                p[i].location = "{val}";
+                            }}
+                        }}
+                    }}
+                '''
+                subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+
+            elif action == "set_dock_visibility" and val:
+                # Plasma 6 panel visibility: "none" (always), "autohide", "windowsCanCover" (dodge windows)
+                script = f'''
+                    var p = panels();
+                    for (var i = 0; i < p.length; i++) {{
+                        if (p[i].location === "bottom") {{
+                            p[i].hiding = "{val}";
+                        }}
+                    }}
+                '''
+                subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+
+            elif action == "set_wallpaper_interval" and val:
+                try:
+                    sec = int(val)
+                    with lock:
+                        state["wallpaper_interval"] = sec
+                    script = f'''
+                        var ds = desktops();
+                        for (var i = 0; i < ds.length; i++) {{
+                            ds[i].currentConfigGroup = ["Wallpaper", "org.kde.slideshow", "General"];
+                            ds[i].writeConfig("SlideInterval", {sec});
+                        }}
+                    '''
+                    subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+                except Exception:
+                    pass
+
+            elif action == "restart_daemon":
+                subprocess.Popen(["systemctl", "--user", "restart", "serpanplasma-daemon.service"])
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")

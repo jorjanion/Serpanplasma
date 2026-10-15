@@ -4,6 +4,8 @@
 
 **Clon estético y funcional exacto de *Serpantinum* adaptado al 100% para KDE Plasma 6 (Wayland) con gestión de ventanas tradicional flotante.**
 
+[🇪🇸 Español](README.md) | [🇬🇧 English](README_EN.md)
+
 [![KDE Plasma 6](https://img.shields.io/badge/KDE_Plasma-6.0%2B-38bdf8?style=for-the-badge&logo=kde&logoColor=white)](https://kde.org/plasma-desktop/)
 [![Wayland](https://img.shields.io/badge/Display-Wayland-0284c7?style=for-the-badge&logo=wayland&logoColor=white)](https://wayland.freedesktop.org/)
 [![CachyOS / Arch](https://img.shields.io/badge/Tested_on-CachyOS_Arch_Linux-10b981?style=for-the-badge&logo=archlinux&logoColor=white)](https://cachyos.org/)
