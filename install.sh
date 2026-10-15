@@ -197,6 +197,16 @@ if command -v systemctl &>/dev/null; then
     systemctl --user enable --now serpanplasma-daemon.service >/dev/null 2>&1 || true
 fi
 
+# 14.1. Install Settings & Guide Dashboard Window
+echo -e "${CYAN}==>${RESET} Instalando ventana de Guía y Configuración (Settings Dashboard)..."
+mkdir -p "$HOME/.local/share/serpanplasma/guide" "$HOME/.local/bin" "$HOME/.local/share/applications"
+cp "$SCRIPT_DIR/configs/guide/SettingsWindow.qml" "$HOME/.local/share/serpanplasma/guide/"
+cp "$SCRIPT_DIR/configs/bin/serpanplasma-settings" "$HOME/.local/bin/"
+chmod +x "$HOME/.local/bin/serpanplasma-settings"
+cp "$SCRIPT_DIR/configs/applications/serpanplasma-settings.desktop" "$HOME/.local/share/applications/"
+update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+
+
 # 15. Wallpaper Slideshow & Clean Desktop Containment Setup
 echo -e "${CYAN}==>${RESET} Configurando fondos de pantalla y superficie de escritorio limpia..."
 sed -i 's/plugin=org.kde.plasma.folder/plugin=org.kde.desktopcontainment/g' "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc" 2>/dev/null || true

@@ -137,7 +137,7 @@ PlasmoidItem {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: barContainer.sendCmd("launcher")
+                        onClicked: barContainer.sendCmd("settings")
                     }
                 }
 

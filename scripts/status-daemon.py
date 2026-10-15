@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Serpanplasma Status Daemon
+Serpanplasma Status & Settings Daemon
 Ultra-lightweight background daemon that queries system metrics (workspaces, media, battery, network, volume, weather)
-and serves them instantly via HTTP on 127.0.0.1:19842 for the Serpanplasma Top Bar QML applet.
+and provides command execution for the Serpanplasma Top Bar and Guide/Settings Dashboard.
 """
 
 import http.server
@@ -19,8 +19,8 @@ state = {
     "media_artist": "",
     "media_playing": False,
     "media_status": "Stopped",
-    "battery": 43,
-    "battery_str": "43%",
+    "battery": 100,
+    "battery_str": "100%",
     "battery_charging": False,
     "battery_icon": "󰁹",
     "network": "Connected",
@@ -28,12 +28,15 @@ state = {
     "network_ssid": "Connected",
     "desktop": 1,
     "desktops_count": 8,
-    "temp": "13.9°C",
-    "weather_icon": "☁",
+    "temp": "25.4°C",
+    "weather_icon": "󰖙",
     "volume": 75,
     "volume_icon": "󰕾",
     "volume_muted": False,
-    "lang": "EN"
+    "lang": "EN",
+    "bar_height": 38,
+    "dock_height": 54,
+    "wallpaper_interval": 900
 }
 
 lock = threading.Lock()
@@ -41,7 +44,7 @@ last_weather_fetch = 0
 
 def run_cmd(args):
     try:
-        res = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=1.0)
+        res = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=1.5)
         return res.stdout.strip()
     except Exception:
         return ""
@@ -120,10 +123,8 @@ def update_battery():
 
 def update_network():
     global state
-    # Check default route or nmcli
     ssid = run_cmd(["bash", "-c", "nmcli -t -f active,ssid dev wifi 2>/dev/null | grep '^yes' | cut -d: -f2 | head -n 1"])
     if not ssid:
-        # Check if ethernet is connected
         eth = run_cmd(["bash", "-c", "cat /sys/class/net/e*/operstate 2>/dev/null | grep up | head -n 1"])
         if eth:
             with lock:
@@ -131,7 +132,6 @@ def update_network():
                 state["network_ssid"] = "Ethernet"
                 state["network_icon"] = "󰈀"
             return
-        # Or check default gateway
         gw = run_cmd(["bash", "-c", "ip route show default 2>/dev/null | head -n 1"])
         if gw:
             with lock:
@@ -162,7 +162,6 @@ def update_workspaces():
 
 def update_volume():
     global state
-    # Try wpctl
     wp = run_cmd(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
     if wp:
         parts = wp.split()
@@ -220,8 +219,18 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/cmd":
             action = params.get("action", [""])[0]
             val = params.get("val", [""])[0]
+            home = os.path.expanduser("~")
 
-            if action == "play-pause":
+            if action == "settings":
+                # Toggle Settings / Guide window
+                qml_path = os.path.join(home, ".local/share/serpanplasma/guide/SettingsWindow.qml")
+                check = subprocess.run(["pgrep", "-f", "SettingsWindow.qml"], stdout=subprocess.PIPE, text=True)
+                if check.stdout.strip():
+                    subprocess.run(["pkill", "-f", "SettingsWindow.qml"])
+                else:
+                    subprocess.Popen(["qml6", qml_path])
+
+            elif action == "play-pause":
                 subprocess.Popen(["playerctl", "play-pause"])
             elif action == "previous":
                 subprocess.Popen(["playerctl", "previous"])
@@ -239,6 +248,68 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 subprocess.Popen(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-"])
             elif action == "vol_mute":
                 subprocess.Popen(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
+
+            # Settings Window Actions
+            elif action == "next_wallpaper":
+                script = '''
+                    var ds = desktops();
+                    for (var i = 0; i < ds.length; i++) {
+                        ds[i].currentConfigGroup = ["Wallpaper", "org.kde.slideshow", "General"];
+                        var paths = ds[i].readConfig("SlidePaths");
+                        ds[i].writeConfig("SlidePaths", paths);
+                    }
+                '''
+                subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+
+            elif action == "open_wallpapers":
+                wp_dir = os.path.join(home, "Imágenes", "Wallpapers")
+                subprocess.Popen(["xdg-open", wp_dir])
+
+            elif action == "apply_colorscheme" and val:
+                subprocess.run(["plasma-apply-colorscheme", val])
+
+            elif action == "restart_kwin":
+                subprocess.run(["qdbus6", "org.kde.KWin", "/KWin", "reconfigure"])
+
+            elif action == "restart_plasma":
+                subprocess.run(["systemctl", "--user", "restart", "plasma-plasmashell.service"])
+
+            elif action == "open_url" and val:
+                subprocess.Popen(["xdg-open", val])
+
+            elif action == "set_bar_height" and val:
+                try:
+                    h = int(val)
+                    with lock:
+                        state["bar_height"] = h
+                    script = f'''
+                        var p = panels();
+                        for (var i = 0; i < p.length; i++) {{
+                            if (p[i].location === "top") {{
+                                p[i].height = {h};
+                            }}
+                        }}
+                    '''
+                    subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+                except Exception:
+                    pass
+
+            elif action == "set_dock_height" and val:
+                try:
+                    h = int(val)
+                    with lock:
+                        state["dock_height"] = h
+                    script = f'''
+                        var p = panels();
+                        for (var i = 0; i < p.length; i++) {{
+                            if (p[i].location === "bottom") {{
+                                p[i].height = {h};
+                            }}
+                        }}
+                    '''
+                    subprocess.run(["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+                except Exception:
+                    pass
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

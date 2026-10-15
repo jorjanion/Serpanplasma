@@ -62,10 +62,12 @@ for f in "$LATEST_BACKUP"/*; do
     fi
 done
 
-# 3. Remove custom plasmoid and themes
+# 3. Remove custom plasmoid, guide, and themes
 rm -rf "$HOME/.local/share/plasma/plasmoids/org.serpanplasma.bar" 2>/dev/null || true
 rm -rf "$HOME/.local/share/plasma/desktoptheme/Serpanplasma" 2>/dev/null || true
 rm -rf "$HOME/.local/share/serpanplasma" 2>/dev/null || true
+rm -f "$HOME/.local/bin/serpanplasma-settings" 2>/dev/null || true
+rm -f "$HOME/.local/share/applications/serpanplasma-settings.desktop" 2>/dev/null || true
 
 # 4. Revert color scheme and desktop theme to defaults
 if command -v plasma-apply-colorscheme &>/dev/null; then

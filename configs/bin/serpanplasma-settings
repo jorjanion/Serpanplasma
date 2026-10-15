@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Serpanplasma Settings & Guide Launcher
+exec qml6 "$HOME/.local/share/serpanplasma/guide/SettingsWindow.qml" "$@"
