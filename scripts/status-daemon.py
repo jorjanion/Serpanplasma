@@ -826,8 +826,8 @@ description=Serpanplasma Desktop Widgets
 wmclass=qml6
 wmclasscomplete=false
 wmclassmatch=1
-title=Serpanplasma.*Widget
-titlematch=3
+title=Serpanplasma
+titlematch=1
 skiptaskbar=true
 skiptaskbarrule=2
 skippager=true
@@ -838,18 +838,17 @@ below=true
 belowrule=2
 acceptfocus=false
 acceptfocusrule=2
-type=3
-typerule=2
 """
         with open(kwinrules_path, "w") as f:
             f.write(rule_content)
-        subprocess.run(["qdbus6", "org.kde.KWin", "/KWin", "reconfigure"], timeout=2.0)
+        subprocess.run(["qdbus6", "org.kde.KWin", "/KWin", "reconfigure"], env=get_gui_env(), timeout=2.0)
     except Exception:
         pass
 
 def hide_widgets_from_taskbar():
     """Apply skip_taskbar, skip_pager, skip_switcher, below and desktop window type to Serpanplasma widget windows"""
     try:
+        env = get_gui_env()
         widgets = [
             "Serpanplasma Hardware Widget",
             "Serpanplasma Clock Widget",
@@ -857,8 +856,8 @@ def hide_widgets_from_taskbar():
             "Serpanplasma Music Widget"
         ]
         for w in widgets:
-            subprocess.run(["xprop", "-name", w, "-f", "_NET_WM_WINDOW_TYPE", "32a", "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DESKTOP"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
-            subprocess.run(["wmctrl", "-r", w, "-b", "add,skip_taskbar,skip_pager,below"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            subprocess.run(["xprop", "-name", w, "-f", "_NET_WM_WINDOW_TYPE", "32a", "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DESKTOP"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            subprocess.run(["wmctrl", "-r", w, "-b", "add,below,skip_taskbar,skip_pager"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
     except Exception:
         pass
 

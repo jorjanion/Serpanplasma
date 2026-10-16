@@ -184,7 +184,7 @@ QtObject {
         width: 360
         height: 200
         color: "transparent"
-        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.SubWindow
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Window
         title: "Serpanplasma Hardware Widget"
 
         Rectangle {
@@ -301,7 +301,7 @@ QtObject {
         width: 360
         height: 125
         color: "transparent"
-        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.SubWindow
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Window
         title: "Serpanplasma Clock Widget"
 
         Rectangle {
@@ -362,7 +362,7 @@ QtObject {
         width: 380
         height: 220
         color: "transparent"
-        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.SubWindow
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Window
         title: "Serpanplasma Weather Widget"
 
         Rectangle {
@@ -510,7 +510,7 @@ QtObject {
         width: 360
         height: 88
         color: "transparent"
-        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.SubWindow
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysBelowHint | Qt.Window
         title: "Serpanplasma Music Widget"
 
         Rectangle {
