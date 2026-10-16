@@ -936,7 +936,11 @@ PlasmoidItem {
             hideOnWindowDeactivate: true
             visible: false
             onVisibleChanged: {
-                if (!visible) barContainer.lastDialogClosedTimes["weather"] = Date.now();
+                if (visible) {
+                    barContainer.selectedForecastIdx = 0;
+                } else {
+                    barContainer.lastDialogClosedTimes["weather"] = Date.now();
+                }
             }
 
             mainItem: Rectangle {
@@ -1065,9 +1069,20 @@ PlasmoidItem {
                             policy: ScrollBar.AlwaysOff
                         }
 
-                        model: (barContainer.weatherHourlyByDay && barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)])
-                               ? barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)]
-                               : barContainer.weatherHourly
+                        model: {
+                            var dayList = (barContainer.weatherHourlyByDay && barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)])
+                                          ? barContainer.weatherHourlyByDay[String(barContainer.selectedForecastIdx)]
+                                          : barContainer.weatherHourly;
+                            if (barContainer.selectedForecastIdx === 0 && Array.isArray(dayList)) {
+                                var curH = new Date().getHours();
+                                return dayList.filter(function(item) {
+                                    if (!item || !item.time) return true;
+                                    var h = parseInt(item.time.split(":")[0], 10);
+                                    return isNaN(h) || h >= curH;
+                                });
+                            }
+                            return dayList;
+                        }
                         delegate: Rectangle {
                             width: 62
                             height: 86

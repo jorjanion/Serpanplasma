@@ -466,7 +466,16 @@ QtObject {
                     spacing: 6
 
                     Repeater {
-                        model: (Array.isArray(root.weatherHourly) ? root.weatherHourly.slice(0, 5) : [])
+                        model: {
+                            if (!Array.isArray(root.weatherHourly) || root.weatherHourly.length === 0) return [];
+                            var curH = new Date().getHours();
+                            var filtered = root.weatherHourly.filter(function(item) {
+                                if (!item || !item.time) return true;
+                                var h = parseInt(item.time.split(":")[0], 10);
+                                return isNaN(h) || h >= curH;
+                            });
+                            return (filtered.length >= 5) ? filtered.slice(0, 5) : root.weatherHourly.slice(0, 5);
+                        }
                         delegate: Rectangle {
                             Layout.fillWidth: true
                             height: 62

@@ -5,6 +5,7 @@ Ultra-lightweight background daemon that queries system metrics (workspaces, med
 and provides real-time command execution for the Serpanplasma Top Bar, Dock, Desktop Widgets and Settings Dashboard.
 """
 
+import datetime
 import http.server
 import json
 import os
@@ -227,6 +228,7 @@ state = {
 }
 
 last_weather_fetch = 0
+cached_weather_raw = None
 prev_cpu_total = 0
 prev_cpu_idle = 0
 
@@ -394,104 +396,136 @@ def ensure_serpanplasma_dock():
         pass
 
 def update_weather():
-    global last_weather_fetch, state
+    global last_weather_fetch, cached_weather_raw, state
     now = time.time()
-    if now - last_weather_fetch < 600 and last_weather_fetch != 0:
+    if now - last_weather_fetch >= 600 or cached_weather_raw is None:
+        try:
+            import urllib.request
+            url = "https://api.open-meteo.com/v1/forecast?latitude=40.4168&longitude=-3.7038&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Serpanplasma/1.0'})
+            with urllib.request.urlopen(req, timeout=4.5) as resp:
+                cached_weather_raw = json.loads(resp.read().decode())
+                last_weather_fetch = now
+        except Exception:
+            pass
+
+    if not cached_weather_raw:
         return
-    last_weather_fetch = now
+
     try:
-        import urllib.request
-        url = "https://api.open-meteo.com/v1/forecast?latitude=40.4168&longitude=-3.7038&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Serpanplasma/1.0'})
-        with urllib.request.urlopen(req, timeout=4.5) as resp:
-            data = json.loads(resp.read().decode())
-            cur = data.get("current", {})
-            daily = data.get("daily", {})
-            hourly = data.get("hourly", {})
-            temp = cur.get("temperature_2m")
-            feels = cur.get("apparent_temperature", temp)
-            hum = cur.get("relative_humidity_2m", 50)
-            wind = cur.get("wind_speed_10m", 0)
-            pressure = round(cur.get("surface_pressure", 1013))
-            code = cur.get("weather_code", 0)
+        data = cached_weather_raw
+        cur = data.get("current", {})
+        daily = data.get("daily", {})
+        hourly = data.get("hourly", {})
+        temp = cur.get("temperature_2m")
+        feels = cur.get("apparent_temperature", temp)
+        hum = cur.get("relative_humidity_2m", 50)
+        wind = cur.get("wind_speed_10m", 0)
+        pressure = round(cur.get("surface_pressure", 1013))
+        code = cur.get("weather_code", 0)
 
-            code_map = {
-                0: ("󰖙", "Despejado"),
-                1: ("󰖙", "Mayormente despejado"),
-                2: ("☁", "Parcialmente nublado"),
-                3: ("☁", "Nublado"),
-                45: ("󰖑", "Niebla"),
-                48: ("󰖑", "Niebla con escarcha"),
-                51: ("󰖖", "Llovizna ligera"),
-                53: ("󰖖", "Llovizna moderada"),
-                55: ("󰖖", "Llovizna densa"),
-                61: ("󰖖", "Lluvia ligera"),
-                63: ("󰖖", "Lluvia moderada"),
-                65: ("󰖖", "Lluvia fuerte"),
-                71: ("󰼶", "Nevada ligera"),
-                73: ("󰼶", "Nevada moderada"),
-                75: ("󰼶", "Nevada fuerte"),
-                95: ("󰖓", "Tormenta eléctrica")
-            }
+        code_map = {
+            0: ("󰖙", "Despejado"),
+            1: ("󰖙", "Mayormente despejado"),
+            2: ("☁", "Parcialmente nublado"),
+            3: ("☁", "Nublado"),
+            45: ("󰖑", "Niebla"),
+            48: ("󰖑", "Niebla con escarcha"),
+            51: ("󰖖", "Llovizna ligera"),
+            53: ("󰖖", "Llovizna moderada"),
+            55: ("󰖖", "Llovizna densa"),
+            61: ("󰖖", "Lluvia ligera"),
+            63: ("󰖖", "Lluvia moderada"),
+            65: ("󰖖", "Lluvia fuerte"),
+            71: ("󰼶", "Nevada ligera"),
+            73: ("󰼶", "Nevada moderada"),
+            75: ("󰼶", "Nevada fuerte"),
+            95: ("󰖓", "Tormenta eléctrica")
+        }
 
-            icon, desc = code_map.get(code, ("☁", "Variable"))
+        icon, desc = code_map.get(code, ("☁", "Variable"))
 
-            # Build 4-day forecast
-            forecast = []
-            day_names = ["Hoy", "Mañana", "Sábado", "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
-            max_list = daily.get("temperature_2m_max", [])
-            min_list = daily.get("temperature_2m_min", [])
-            code_list = daily.get("weather_code", [])
+        # Build 4-day forecast
+        forecast = []
+        day_names = ["Hoy", "Mañana", "Sábado", "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+        max_list = daily.get("temperature_2m_max", [])
+        min_list = daily.get("temperature_2m_min", [])
+        code_list = daily.get("weather_code", [])
 
-            for idx in range(min(4, len(max_list))):
-                d_code = code_list[idx] if idx < len(code_list) else 0
-                d_icon, _ = code_map.get(d_code, ("☁", ""))
-                d_name = day_names[idx] if idx < len(day_names) else f"+{idx}d"
-                forecast.append({
-                    "day": d_name,
-                    "icon": d_icon,
-                    "max": f"{round(max_list[idx])}°",
-                    "min": f"{round(min_list[idx])}°"
-                })
+        for idx in range(min(4, len(max_list))):
+            d_code = code_list[idx] if idx < len(code_list) else 0
+            d_icon, _ = code_map.get(d_code, ("☁", ""))
+            d_name = day_names[idx] if idx < len(day_names) else f"+{idx}d"
+            forecast.append({
+                "day": d_name,
+                "icon": d_icon,
+                "max": f"{round(max_list[idx])}°",
+                "min": f"{round(min_list[idx])}°"
+            })
 
-            # Build 24-hour hourly forecast grouped by day (indices 0, 1, 2, 3)
-            h_times = hourly.get("time", [])
-            h_temps = hourly.get("temperature_2m", [])
-            h_codes = hourly.get("weather_code", [])
-            h_pops = hourly.get("precipitation_probability", [])
+        h_times = hourly.get("time", [])
+        h_temps = hourly.get("temperature_2m", [])
+        h_codes = hourly.get("weather_code", [])
+        h_pops = hourly.get("precipitation_probability", [])
 
-            hourly_by_day = {}
-            for day_idx in range(4):
-                day_hours = []
+        cur_hour = datetime.datetime.now().hour
+
+        # Next upcoming 24 hours starting from cur_hour (for desktop widget 5 pills)
+        next_24h = []
+        for i in range(cur_hour, min(cur_hour + 24, len(h_times))):
+            raw_t = h_times[i]
+            hh = raw_t.split("T")[-1] if "T" in raw_t else raw_t
+            h_code = h_codes[i] if i < len(h_codes) else 0
+            h_icon, _ = code_map.get(h_code, ("☁", ""))
+            h_temp = f"{round(h_temps[i])}°" if i < len(h_temps) else ""
+            h_pop = f"{h_pops[i]}%" if i < len(h_pops) else "0%"
+            next_24h.append({
+                "time": hh,
+                "temp": h_temp,
+                "icon": h_icon,
+                "pop": h_pop
+            })
+
+        # Group hourly forecast by day
+        # Day 0 ("Hoy"): starts at current hour up to end of today (24:00)
+        # Other days ("Mañana", +2d, +3d): start at 00:00 (full 24h)
+        hourly_by_day = {}
+        for day_idx in range(4):
+            day_hours = []
+            if day_idx == 0:
+                start_h = cur_hour
+                end_h = 24
+            else:
                 start_h = day_idx * 24
                 end_h = start_h + 24
-                for i in range(start_h, min(end_h, len(h_times))):
-                    raw_t = h_times[i]
-                    hh = raw_t.split("T")[-1] if "T" in raw_t else raw_t
-                    h_code = h_codes[i] if i < len(h_codes) else 0
-                    h_icon, _ = code_map.get(h_code, ("☁", ""))
-                    h_temp = f"{round(h_temps[i])}°" if i < len(h_temps) else ""
-                    h_pop = f"{h_pops[i]}%" if i < len(h_pops) else "0%"
-                    day_hours.append({
-                        "time": hh,
-                        "temp": h_temp,
-                        "icon": h_icon,
-                        "pop": h_pop
-                    })
-                hourly_by_day[str(day_idx)] = day_hours
 
-            with lock:
-                if temp is not None:
-                    state["temp"] = f"{temp:.1f}°C"
-                    state["weather_feels_like"] = f"{feels:.1f}°C"
-                    state["weather_humidity"] = hum
-                    state["weather_wind"] = f"{wind:.1f} km/h"
-                    state["weather_pressure"] = f"{pressure} hPa"
-                    state["weather_icon"] = icon
-                    state["weather_desc"] = desc
-                    state["weather_forecast"] = forecast
-                    state["weather_hourly"] = hourly_by_day.get("0", [])
-                    state["weather_hourly_by_day"] = hourly_by_day
+            for i in range(start_h, min(end_h, len(h_times))):
+                raw_t = h_times[i]
+                hh = raw_t.split("T")[-1] if "T" in raw_t else raw_t
+                h_code = h_codes[i] if i < len(h_codes) else 0
+                h_icon, _ = code_map.get(h_code, ("☁", ""))
+                h_temp = f"{round(h_temps[i])}°" if i < len(h_temps) else ""
+                h_pop = f"{h_pops[i]}%" if i < len(h_pops) else "0%"
+                day_hours.append({
+                    "time": hh,
+                    "temp": h_temp,
+                    "icon": h_icon,
+                    "pop": h_pop
+                })
+            hourly_by_day[str(day_idx)] = day_hours
+
+        with lock:
+            if temp is not None:
+                state["temp"] = f"{temp:.1f}°C"
+                state["weather_feels_like"] = f"{feels:.1f}°C"
+                state["weather_humidity"] = hum
+                state["weather_wind"] = f"{wind:.1f} km/h"
+                state["weather_pressure"] = f"{pressure} hPa"
+                state["weather_icon"] = icon
+                state["weather_desc"] = desc
+                state["weather_forecast"] = forecast
+                state["weather_hourly"] = next_24h
+                state["weather_hourly_by_day"] = hourly_by_day
     except Exception:
         pass
 
