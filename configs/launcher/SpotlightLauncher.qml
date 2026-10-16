@@ -6,14 +6,14 @@ import org.kde.kirigami 2.20 as Kirigami
 Window {
     id: root
     width: 680
-    height: Math.min(520, 76 + (resultList.count > 0 ? Math.min(6, resultList.count) * 58 + 48 : 0))
+    height: 520
     color: "transparent"
     flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Dialog
     visible: true
 
-    // Responsive screen placement: horizontally centered, ~16% from top
+    // Centered window placement
     x: (Screen.width - width) / 2
-    y: Math.round(Screen.height * 0.16)
+    y: (Screen.height - height) / 2
 
     // Dynamic reactive theme properties
     property string themeBg: "#0f172a"
@@ -31,14 +31,51 @@ Window {
     property bool isCalc: false
     property bool isCmd: false
 
-    function sendCmd(action, val) {
+    readonly property bool hasQuery: searchField.text.trim().length > 0
+    readonly property bool noMatches: hasQuery && !isCalc && !isCmd && searchResults.length === 0
+
+    readonly property int headerHeight: 64
+    readonly property int footerHeight: 36
+    readonly property int itemHeight: 56
+
+    readonly property int targetHeight: {
+        if (!hasQuery) {
+            return headerHeight;
+        }
+        if (isCalc || isCmd) {
+            return headerHeight + 1 + 60 + footerHeight;
+        }
+        if (searchResults.length === 0) {
+            return headerHeight + 1 + 56 + footerHeight;
+        }
+        var visibleRows = Math.min(6, searchResults.length);
+        return headerHeight + 1 + (visibleRows * itemHeight) + footerHeight;
+    }
+
+    function sendCmdAndQuit(action, val) {
+        root.visible = false;
         var url = "http://127.0.0.1:19842/cmd?action=" + action;
         if (val !== undefined && val !== "") {
             url += "&val=" + encodeURIComponent(val);
         }
         var xhr = new XMLHttpRequest();
         xhr.open("GET", url);
+        var quitFired = false;
+        function doQuit() {
+            if (!quitFired) {
+                quitFired = true;
+                Qt.quit();
+            }
+        }
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                doQuit();
+            }
+        };
         xhr.send();
+        // Safety timeout so launcher process never hangs
+        var timer = Qt.createQmlObject('import QtQuick; Timer { interval: 150; running: true; repeat: false; }', root);
+        timer.triggered.connect(doQuit);
     }
 
     function fetchApps() {
@@ -77,7 +114,6 @@ Window {
 
     function evalMath(expr) {
         try {
-            // Safe evaluation of basic math expressions
             var sanitized = expr.replace(/[^0-9+\-*/().,%^ ]/g, '');
             if (sanitized.length < 2) return "";
             sanitized = sanitized.replace(/\^/g, '**');
@@ -96,13 +132,18 @@ Window {
         root.isCmd = false;
         root.calcResult = "";
 
+        if (q === "") {
+            root.searchResults = [];
+            return;
+        }
+
         if (q.startsWith(">")) {
             root.isCmd = true;
             root.searchResults = [];
             return;
         }
 
-        // Try math evaluation
+        // Math evaluation
         if (/^[0-9+\-*/().,%^ ]+$/.test(q) && q.length >= 2 && /[+\-*/^%]/.test(q)) {
             var mathVal = evalMath(q);
             if (mathVal !== "") {
@@ -111,59 +152,48 @@ Window {
             }
         }
 
-        if (q === "") {
-            // Show top favorites / common apps when empty
-            var favs = ["kitty", "konsole", "dolphin", "browser", "firefox", "chromium", "discord", "spotify", "settings"];
-            var def = [];
-            for (var f = 0; f < favs.length; f++) {
-                for (var i = 0; i < root.allApps.length; i++) {
-                    var a = root.allApps[i];
-                    if (a.name.toLowerCase().indexOf(favs[f]) !== -1 || a.exec.toLowerCase().indexOf(favs[f]) !== -1) {
-                        if (def.indexOf(a) === -1) def.push(a);
-                        break;
-                    }
-                }
+        var qLower = q.toLowerCase();
+        var matches = [];
+        for (var j = 0; j < root.allApps.length; j++) {
+            var app = root.allApps[j];
+            var nameMatch = app.name.toLowerCase().indexOf(qLower);
+            var commentMatch = (app.comment || "").toLowerCase().indexOf(qLower);
+            var execMatch = (app.exec || "").toLowerCase().indexOf(qLower);
+            if (nameMatch === 0) {
+                matches.unshift(app);
+            } else if (nameMatch > 0 || commentMatch !== -1 || execMatch !== -1) {
+                matches.push(app);
             }
-            root.searchResults = def.length > 0 ? def : root.allApps.slice(0, 8);
-        } else {
-            var qLower = q.toLowerCase();
-            var matches = [];
-            for (var j = 0; j < root.allApps.length; j++) {
-                var app = root.allApps[j];
-                var nameMatch = app.name.toLowerCase().indexOf(qLower);
-                var commentMatch = (app.comment || "").toLowerCase().indexOf(qLower);
-                var execMatch = (app.exec || "").toLowerCase().indexOf(qLower);
-                if (nameMatch === 0) {
-                    matches.unshift(app); // Exact prefix match at top
-                } else if (nameMatch > 0 || commentMatch !== -1 || execMatch !== -1) {
-                    matches.push(app);
-                }
-            }
-            root.searchResults = matches.slice(0, 15);
         }
+        root.searchResults = matches.slice(0, 15);
     }
 
     function executeSelected() {
         if (root.isCmd) {
             var cmd = searchField.text.substring(1).trim();
             if (cmd) {
-                root.sendCmd("launch_app", "kitty -e " + cmd + " || konsole -e " + cmd + " || " + cmd);
+                root.sendCmdAndQuit("launch_app", "kitty -e " + cmd + " || konsole -e " + cmd + " || alacritty -e " + cmd + " || " + cmd);
+            } else {
+                Qt.quit();
             }
-            Qt.quit();
             return;
         }
 
         if (root.isCalc) {
-            // Copy calculation to clipboard via status daemon
-            root.sendCmd("launch_app", "wl-copy " + root.calcResult + " 2>/dev/null || xclip -selection c <<< " + root.calcResult);
-            Qt.quit();
+            root.sendCmdAndQuit("launch_app", "wl-copy " + root.calcResult + " 2>/dev/null || xclip -selection c <<< " + root.calcResult);
+            return;
+        }
+
+        if (root.noMatches) {
+            var query = searchField.text.trim();
+            root.sendCmdAndQuit("open_url", "https://www.google.com/search?q=" + encodeURIComponent(query));
             return;
         }
 
         if (root.searchResults.length > 0 && root.selectedIndex < root.searchResults.length) {
             var selectedApp = root.searchResults[root.selectedIndex];
-            root.sendCmd("launch_app", selectedApp.exec);
-            Qt.quit();
+            var target = selectedApp.desktopPath || selectedApp.id || selectedApp.exec;
+            root.sendCmdAndQuit("launch_app", target);
         }
     }
 
@@ -174,7 +204,6 @@ Window {
     }
 
     property bool hasBeenActive: false
-    // Dismiss on window deactivation
     onActiveChanged: {
         if (active) {
             hasBeenActive = true;
@@ -184,16 +213,40 @@ Window {
         }
     }
 
-    // Outer Card Frame
+    // Dismiss on clicking transparent background outside the card
+    MouseArea {
+        anchors.fill: parent
+        onClicked: Qt.quit()
+    }
+
+    // Main Spotlight Container Card (animates upward smoothly as results expand)
     Rectangle {
         id: mainCard
-        anchors.fill: parent
+        width: parent.width
+        height: root.targetHeight
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Math.round((parent.height - height) / 2)
+
+        Behavior on y {
+            NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+        }
+        Behavior on height {
+            NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+        }
+
         radius: 18
         color: root.themeBg
-        opacity: 0.96
+        opacity: 0.98
         border.color: root.themeAccent
         border.width: 1.5
         clip: true
+
+        // Absorb clicks on the card itself so they don't dismiss the window
+        MouseArea {
+            anchors.fill: parent
+            z: -1
+            onClicked: {}
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -202,7 +255,7 @@ Window {
             // 1. SEARCH BAR HEADER
             Rectangle {
                 Layout.fillWidth: true
-                height: 68
+                height: root.headerHeight
                 color: "transparent"
 
                 RowLayout {
@@ -224,7 +277,7 @@ Window {
                         id: searchField
                         Layout.fillWidth: true
                         font.family: "JetBrainsMono Nerd Font"
-                        font.pixelSize: 18
+                        font.pixelSize: 17
                         font.weight: Font.DemiBold
                         color: root.themeFg
                         placeholderText: "Buscar aplicaciones, comandos (>), cálculos..."
@@ -304,11 +357,12 @@ Window {
                 }
             }
 
+            // Separator divider (only visible when there is active content below)
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
                 color: root.themeBorder
-                visible: resultList.count > 0 || root.isCalc || root.isCmd
+                visible: root.hasQuery
             }
 
             // 2. SPECIAL RESULT: CALCULATOR
@@ -363,11 +417,37 @@ Window {
                 }
             }
 
-            // 4. RESULTS LIST VIEW
+            // 4. SPECIAL RESULT: NO MATCHES FOUND
+            Rectangle {
+                Layout.fillWidth: true
+                height: 56
+                visible: root.noMatches
+                color: "transparent"
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 20
+                    anchors.rightMargin: 20
+                    spacing: 14
+                    Text { text: "󰍉"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 20; color: root.themeMuted }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Text { text: "Sin resultados para \"" + searchField.text.trim() + "\""; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold; color: root.themeFg; elide: Text.ElideRight }
+                        Text { text: "↵ Presiona Enter para buscar en la web"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; color: root.themeAccent }
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    onClicked: root.executeSelected()
+                }
+            }
+
+            // 5. RESULTS LIST VIEW
             ListView {
                 id: resultList
+                visible: !root.isCalc && !root.isCmd && root.searchResults.length > 0
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: Math.min(6, root.searchResults.length) * root.itemHeight
                 clip: true
                 model: root.searchResults
                 currentIndex: root.selectedIndex
@@ -376,7 +456,7 @@ Window {
                 delegate: Rectangle {
                     id: itemDelegate
                     width: resultList.width
-                    height: 58
+                    height: root.itemHeight
                     color: (root.selectedIndex === index) ? root.themeCard : (itemMouse.containsMouse ? (root.isLightTheme ? "#e2e8f0" : "#1e293b") : "transparent")
                     border.color: (root.selectedIndex === index) ? root.themeAccent : "transparent"
                     border.width: (root.selectedIndex === index) ? 1 : 0
@@ -390,15 +470,15 @@ Window {
 
                         // App Icon
                         Kirigami.Icon {
-                            Layout.preferredWidth: 34
-                            Layout.preferredHeight: 34
+                            Layout.preferredWidth: 32
+                            Layout.preferredHeight: 32
                             source: modelData.icon || "application-x-executable"
                         }
 
                         // App Name & Details
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 3
+                            spacing: 2
 
                             Text {
                                 text: modelData.name
@@ -444,12 +524,12 @@ Window {
                 }
             }
 
-            // 5. FOOTER SHORTCUT LEGEND
+            // 6. FOOTER SHORTCUT LEGEND
             Rectangle {
                 Layout.fillWidth: true
-                height: 38
+                height: root.footerHeight
                 color: root.isLightTheme ? "#f1f5f9" : "#090d16"
-                visible: resultList.count > 0 || root.isCalc || root.isCmd
+                visible: root.hasQuery
 
                 RowLayout {
                     anchors.centerIn: parent

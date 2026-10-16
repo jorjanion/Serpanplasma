@@ -1595,7 +1595,7 @@ PlasmoidItem {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 networkDialog.visible = false;
-                                barContainer.sendCmd("open_url", "kcmshell6 kcm_networkmanagement");
+                                barContainer.sendCmd("network_settings");
                             }
                         }
                     }

@@ -9,8 +9,10 @@ import datetime
 import http.server
 import json
 import os
+import re
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -259,7 +261,59 @@ def get_gui_env():
         env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={runtime_dir}/bus"
     if not env.get("QT_QPA_PLATFORM"):
         env["QT_QPA_PLATFORM"] = "wayland" if env.get("WAYLAND_DISPLAY") else "xcb"
+
+    # Ensure PATH contains full user and system bin directories
+    home = os.path.expanduser("~")
+    std_paths = [
+        os.path.join(home, ".local/bin"),
+        os.path.join(home, "bin"),
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        "/usr/local/sbin",
+        "/usr/sbin",
+        "/sbin",
+        "/var/lib/flatpak/exports/bin",
+        os.path.join(home, ".local/share/flatpak/exports/bin"),
+    ]
+    cur = env.get("PATH", "").split(":")
+    all_p = [p for p in std_paths if os.path.exists(p)]
+    for p in cur:
+        if p and p not in all_p:
+            all_p.append(p)
+    env["PATH"] = ":".join(all_p)
     return env
+
+def activate_window_if_running(target):
+    """Attempt to focus an already open window matching target name or class in KWin"""
+    if not target:
+        return False
+    safe_target = target.lower().replace('"', '\\"').replace("'", "\\'")
+    js = f'''
+    var wins = workspace.windowList();
+    for (var i = 0; i < wins.length; ++i) {{
+        var w = wins[i];
+        var cap = (w.caption || "").toLowerCase();
+        var cls = (w.resourceClass || "").toLowerCase();
+        var nm = (w.resourceName || "").toLowerCase();
+        if (cap.indexOf("{safe_target}") !== -1 || cls.indexOf("{safe_target}") !== -1 || nm.indexOf("{safe_target}") !== -1) {{
+            workspace.activeWindow = w;
+            break;
+        }}
+    }}
+    '''
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
+            f.write(js)
+            tmp_path = f.name
+        res = subprocess.run(['qdbus6', 'org.kde.KWin', '/Scripting', 'org.kde.kwin.Scripting.loadScript', tmp_path, 'activate_win'], capture_output=True, text=True, timeout=1.0)
+        sid = res.stdout.strip()
+        if sid.isdigit():
+            subprocess.run(['qdbus6', 'org.kde.KWin', f'/Scripting/Script{sid}', 'org.kde.kwin.Script.run'], timeout=1.0)
+            subprocess.run(['qdbus6', 'org.kde.KWin', '/Scripting', 'org.kde.kwin.Scripting.unloadScript', 'activate_win'], timeout=1.0)
+        os.remove(tmp_path)
+    except Exception:
+        pass
 
 cached_apps = []
 apps_last_scanned = 0
@@ -277,7 +331,8 @@ def get_installed_applications():
         os.path.expanduser("~/.local/share/applications"),
         "/usr/local/share/applications",
         "/usr/share/applications",
-        "/var/lib/flatpak/exports/share/applications"
+        "/var/lib/flatpak/exports/share/applications",
+        os.path.expanduser("~/.local/share/flatpak/exports/share/applications")
     ]
     for d in dirs:
         if not os.path.exists(d):
@@ -301,7 +356,13 @@ def get_installed_applications():
                                 if line.startswith("Name=") and not name:
                                     name = line[5:]
                                 elif line.startswith("Exec=") and not exec_cmd:
-                                    exec_cmd = line[5:].split(" %")[0]
+                                    raw_exec = line[5:]
+                                    cleaned = re.sub(r'["\']?%[a-zA-Z]["\']?', '', raw_exec).strip()
+                                    if cleaned.endswith('--url --'):
+                                        cleaned = cleaned[:-8].strip()
+                                    elif cleaned.endswith('--'):
+                                        cleaned = cleaned[:-2].strip()
+                                    exec_cmd = cleaned
                                 elif line.startswith("Icon=") and not icon:
                                     icon = line[5:]
                                 elif line.startswith("Comment=") and not comment:
@@ -316,7 +377,8 @@ def get_installed_applications():
                                     "exec": exec_cmd,
                                     "icon": icon if icon else "application-x-executable",
                                     "comment": comment,
-                                    "id": file
+                                    "id": file,
+                                    "desktopPath": path
                                 })
                 except Exception:
                     pass
@@ -980,7 +1042,51 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                     subprocess.Popen(["qml6", spot_path], env=get_gui_env())
 
             elif action == "launch_app" and val:
-                subprocess.Popen(val, shell=True, env=get_gui_env())
+                desktop_file = None
+                if val.endswith(".desktop"):
+                    if os.path.isabs(val) and os.path.exists(val):
+                        desktop_file = val
+                    else:
+                        for d in [
+                            os.path.expanduser("~/.local/share/applications"),
+                            "/usr/local/share/applications",
+                            "/usr/share/applications",
+                            "/var/lib/flatpak/exports/share/applications",
+                            os.path.expanduser("~/.local/share/flatpak/exports/share/applications")
+                        ]:
+                            cand = os.path.join(d, val)
+                            if os.path.exists(cand):
+                                desktop_file = cand
+                                break
+
+                # If the app is already open, try to focus it
+                app_target = None
+                if desktop_file:
+                    app_target = os.path.basename(desktop_file).replace(".desktop", "")
+                elif not any(c in val for c in [" ", "/", ";", "|", "&"]):
+                    app_target = val
+                
+                if app_target:
+                    activate_window_if_running(app_target)
+
+                if desktop_file:
+                    try:
+                        subprocess.Popen(["gio", "launch", desktop_file], env=get_gui_env(), start_new_session=True)
+                    except Exception:
+                        try:
+                            base = os.path.basename(desktop_file)
+                            if base.endswith(".desktop"):
+                                base = base[:-8]
+                            subprocess.Popen(["gtk-launch", base], env=get_gui_env(), start_new_session=True)
+                        except Exception:
+                            pass
+                else:
+                    cleaned = re.sub(r'["\']?%[a-zA-Z]["\']?', '', val).strip()
+                    if cleaned.endswith('--url --'):
+                        cleaned = cleaned[:-8].strip()
+                    elif cleaned.endswith('--'):
+                        cleaned = cleaned[:-2].strip()
+                    subprocess.Popen(cleaned, shell=True, env=get_gui_env(), start_new_session=True)
 
             elif action == "ensure_dock":
                 ensure_serpanplasma_dock()
@@ -1380,8 +1486,14 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             elif action == "restart_daemon":
                 subprocess.Popen(["systemctl", "--user", "restart", "serpanplasma-daemon.service"])
 
+            elif action == "network_settings":
+                subprocess.Popen(["kcmshell6", "kcm_networkmanagement"], env=get_gui_env(), start_new_session=True)
+
             elif action == "open_url" and val:
-                subprocess.Popen(["xdg-open", val])
+                if val.startswith("http://") or val.startswith("https://"):
+                    subprocess.Popen(["xdg-open", val], env=get_gui_env(), start_new_session=True)
+                else:
+                    subprocess.Popen(val, shell=True, env=get_gui_env(), start_new_session=True)
 
             elif action == "set_popup":
                 with lock:
