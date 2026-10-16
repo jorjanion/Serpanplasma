@@ -827,7 +827,7 @@ wmclass=qml6
 wmclasscomplete=false
 wmclassmatch=1
 title=Serpanplasma
-titlematch=1
+titlematch=2
 skiptaskbar=true
 skiptaskbarrule=2
 skippager=true
@@ -857,7 +857,9 @@ def hide_widgets_from_taskbar():
         ]
         for w in widgets:
             subprocess.run(["xprop", "-name", w, "-f", "_NET_WM_WINDOW_TYPE", "32a", "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DESKTOP"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
-            subprocess.run(["wmctrl", "-r", w, "-b", "add,below,skip_taskbar,skip_pager"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            subprocess.run(["xprop", "-name", w, "-f", "_NET_WM_STATE", "32a", "-set", "_NET_WM_STATE", "_NET_WM_STATE_BELOW, _NET_WM_STATE_SKIP_TASKBAR, _NET_WM_STATE_SKIP_PAGER"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            subprocess.run(["wmctrl", "-r", w, "-b", "add,skip_taskbar,skip_pager"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            subprocess.run(["wmctrl", "-r", w, "-b", "add,below"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
     except Exception:
         pass
 
