@@ -1,3 +1,13 @@
 #!/usr/bin/env bash
 # Serpanplasma Spotlight Launcher Wrapper
+
+# Fast-close if already running
+if pgrep -f "[S]potlightLauncher.qml" >/dev/null 2>&1; then
+    pkill -9 -f "[S]potlightLauncher.qml"
+    exit 0
+fi
+
+unset DESKTOP_STARTUP_ID
+unset XDG_ACTIVATION_TOKEN
+
 curl -s "http://127.0.0.1:19842/cmd?action=toggle_spotlight" >/dev/null 2>&1 || qml6 "$HOME/.local/share/serpanplasma/launcher/SpotlightLauncher.qml"

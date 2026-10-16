@@ -1037,9 +1037,12 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 spot_path = os.path.join(home, ".local/share/serpanplasma/launcher/SpotlightLauncher.qml")
                 check = subprocess.run(["pgrep", "-f", "[S]potlightLauncher.qml"], stdout=subprocess.PIPE, text=True)
                 if check.stdout.strip():
-                    subprocess.run(["pkill", "-f", "[S]potlightLauncher.qml"])
+                    subprocess.run(["pkill", "-9", "-f", "[S]potlightLauncher.qml"])
                 else:
-                    subprocess.Popen(["qml6", spot_path], env=get_gui_env())
+                    env = get_gui_env()
+                    env.pop("DESKTOP_STARTUP_ID", None)
+                    env.pop("XDG_ACTIVATION_TOKEN", None)
+                    subprocess.Popen(["qml6", spot_path], env=env, start_new_session=True)
 
             elif action == "launch_app" and val:
                 desktop_file = None

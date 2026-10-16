@@ -6,3 +6,5 @@ Icon=preferences-system-search
 Terminal=false
 Type=Application
 Categories=Utility;KDE;
+StartupNotify=false
+X-KDE-StartupNotify=false

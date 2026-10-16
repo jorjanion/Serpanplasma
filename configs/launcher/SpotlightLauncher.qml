@@ -15,6 +15,11 @@ Window {
     x: (Screen.width - width) / 2
     y: (Screen.height - height) / 2
 
+    Shortcut {
+        sequence: "Escape"
+        onActivated: Qt.quit()
+    }
+
     // Dynamic reactive theme properties
     property string themeBg: "#0f172a"
     property string themeCard: "#1e293b"
@@ -299,6 +304,13 @@ Window {
                             if (root.searchResults.length > 0) {
                                 root.selectedIndex = Math.max(0, root.selectedIndex - 1);
                                 resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain);
+                            }
+                        }
+
+                        Keys.onPressed: (event) => {
+                            if (event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R || event.key === Qt.Key_Meta) {
+                                event.accepted = true;
+                                Qt.quit();
                             }
                         }
 

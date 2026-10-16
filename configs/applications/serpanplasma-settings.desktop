@@ -6,4 +6,5 @@ Exec=/bin/sh -c 'qml6 "$HOME/.local/share/serpanplasma/guide/SettingsWindow.qml"
 Icon=preferences-system
 Terminal=false
 Categories=Settings;DesktopSettings;Qt;KDE;
-StartupNotify=true
+StartupNotify=false
+X-KDE-StartupNotify=false
