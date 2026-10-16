@@ -150,6 +150,21 @@ THEME_PALETTES = {
 lock = threading.Lock()
 settings = dict(DEFAULT_SETTINGS)
 
+spotlight_proc = None
+spotlight_last_closed = 0.0
+spotlight_lock = threading.Lock()
+
+def monitor_spotlight_proc(proc):
+    global spotlight_last_closed, spotlight_proc
+    try:
+        proc.wait()
+    except Exception:
+        pass
+    with spotlight_lock:
+        spotlight_last_closed = time.time()
+        if spotlight_proc == proc:
+            spotlight_proc = None
+
 def load_settings():
     global settings
     try:
@@ -978,6 +993,7 @@ def background_poller():
 
 class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
+        global spotlight_proc, spotlight_last_closed
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         params = urllib.parse.parse_qs(parsed.query)
@@ -1031,18 +1047,45 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 if check.stdout.strip():
                     subprocess.run(["pkill", "-f", "[S]ettingsWindow.qml"])
                     time.sleep(0.15)
-                subprocess.Popen(["qml6", qml_path], env=get_gui_env())
+                subprocess.Popen(["systemd-run", "--user", "--scope", "qml6", qml_path], env=get_gui_env(), start_new_session=True)
+
+            elif action == "spotlight_closed":
+                with spotlight_lock:
+                    spotlight_last_closed = time.time()
+                    spotlight_proc = None
 
             elif action == "toggle_spotlight":
-                spot_path = os.path.join(home, ".local/share/serpanplasma/launcher/SpotlightLauncher.qml")
-                check = subprocess.run(["pgrep", "-f", "[S]potlightLauncher.qml"], stdout=subprocess.PIPE, text=True)
-                if check.stdout.strip():
-                    subprocess.run(["pkill", "-9", "-f", "[S]potlightLauncher.qml"])
-                else:
-                    env = get_gui_env()
-                    env.pop("DESKTOP_STARTUP_ID", None)
-                    env.pop("XDG_ACTIVATION_TOKEN", None)
-                    subprocess.Popen(["qml6", spot_path], env=env, start_new_session=True)
+                with spotlight_lock:
+                    now = time.time()
+                    is_running = False
+                    if spotlight_proc and spotlight_proc.poll() is None:
+                        is_running = True
+                    else:
+                        check = subprocess.run(["pgrep", "-f", "^qml6 .*SpotlightLauncher\\.qml"], stdout=subprocess.PIPE, text=True)
+                        if check.stdout.strip():
+                            is_running = True
+
+                    if is_running:
+                        if spotlight_proc and spotlight_proc.poll() is None:
+                            try:
+                                spotlight_proc.kill()
+                            except Exception:
+                                pass
+                        subprocess.run(["pkill", "-9", "-f", "^qml6 .*SpotlightLauncher\\.qml"])
+                        spotlight_last_closed = now
+                        spotlight_proc = None
+                    else:
+                        # Debounce guard: if spotlight closed less than 0.55s ago,
+                        # this toggle is part of the close action (Super key tap or focus switch).
+                        # Do NOT reopen.
+                        if (now - spotlight_last_closed) >= 0.55:
+                            spot_path = os.path.join(home, ".local/share/serpanplasma/launcher/SpotlightLauncher.qml")
+                            env = get_gui_env()
+                            env.pop("DESKTOP_STARTUP_ID", None)
+                            env.pop("XDG_ACTIVATION_TOKEN", None)
+                            proc = subprocess.Popen(["qml6", spot_path], env=env, start_new_session=True)
+                            spotlight_proc = proc
+                            threading.Thread(target=monitor_spotlight_proc, args=(proc,), daemon=True).start()
 
             elif action == "launch_app" and val:
                 desktop_file = None
@@ -1074,13 +1117,13 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
                 if desktop_file:
                     try:
-                        subprocess.Popen(["gio", "launch", desktop_file], env=get_gui_env(), start_new_session=True)
+                        subprocess.Popen(["systemd-run", "--user", "--scope", "gio", "launch", desktop_file], env=get_gui_env(), start_new_session=True)
                     except Exception:
                         try:
                             base = os.path.basename(desktop_file)
                             if base.endswith(".desktop"):
                                 base = base[:-8]
-                            subprocess.Popen(["gtk-launch", base], env=get_gui_env(), start_new_session=True)
+                            subprocess.Popen(["systemd-run", "--user", "--scope", "gtk-launch", base], env=get_gui_env(), start_new_session=True)
                         except Exception:
                             pass
                 else:
@@ -1089,7 +1132,7 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                         cleaned = cleaned[:-8].strip()
                     elif cleaned.endswith('--'):
                         cleaned = cleaned[:-2].strip()
-                    subprocess.Popen(cleaned, shell=True, env=get_gui_env(), start_new_session=True)
+                    subprocess.Popen(f"systemd-run --user --scope {cleaned} 2>/dev/null || {cleaned}", shell=True, env=get_gui_env(), start_new_session=True)
 
             elif action == "ensure_dock":
                 ensure_serpanplasma_dock()
@@ -1490,7 +1533,7 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 subprocess.Popen(["systemctl", "--user", "restart", "serpanplasma-daemon.service"])
 
             elif action == "network_settings":
-                subprocess.Popen(["kcmshell6", "kcm_networkmanagement"], env=get_gui_env(), start_new_session=True)
+                subprocess.Popen(["systemd-run", "--user", "--scope", "kcmshell6", "kcm_networkmanagement"], env=get_gui_env(), start_new_session=True)
 
             elif action == "open_url" and val:
                 if val.startswith("http://") or val.startswith("https://"):

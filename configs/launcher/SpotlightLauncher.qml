@@ -208,6 +208,12 @@ Window {
         searchField.forceActiveFocus();
     }
 
+    Component.onDestruction: {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "http://127.0.0.1:19842/cmd?action=spotlight_closed", true);
+        xhr.send();
+    }
+
     property bool hasBeenActive: false
     onActiveChanged: {
         if (active) {
