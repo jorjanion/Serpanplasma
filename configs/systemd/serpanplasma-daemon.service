@@ -1,12 +1,13 @@
 [Unit]
 Description=Serpanplasma System Status Daemon
-After=plasma-core.target
+After=plasma-core.target graphical-session.target
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 %h/.local/share/serpanplasma/scripts/status-daemon.py
 Restart=always
 RestartSec=3
+PassEnvironment=DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS
 
 [Install]
 WantedBy=default.target

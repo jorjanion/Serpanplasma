@@ -237,6 +237,92 @@ def run_cmd(args):
     except Exception:
         return ""
 
+def get_gui_env():
+    """Build complete GUI environment with active Wayland/X11 display and DBus for GUI child processes"""
+    env = os.environ.copy()
+    uid = os.getuid()
+    runtime_dir = env.get("XDG_RUNTIME_DIR", f"/run/user/{uid}")
+    env["XDG_RUNTIME_DIR"] = runtime_dir
+    if not env.get("WAYLAND_DISPLAY"):
+        for name in ["wayland-0", "wayland-1"]:
+            if os.path.exists(os.path.join(runtime_dir, name)):
+                env["WAYLAND_DISPLAY"] = name
+                break
+    if not env.get("DISPLAY"):
+        for num in ["0", "1"]:
+            if os.path.exists(f"/tmp/.X11-unix/X{num}"):
+                env["DISPLAY"] = f":{num}"
+                break
+    if not env.get("DBUS_SESSION_BUS_ADDRESS"):
+        env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={runtime_dir}/bus"
+    if not env.get("QT_QPA_PLATFORM"):
+        env["QT_QPA_PLATFORM"] = "wayland" if env.get("WAYLAND_DISPLAY") else "xcb"
+    return env
+
+cached_apps = []
+apps_last_scanned = 0
+
+def get_installed_applications():
+    """Scan and index all .desktop files on the system for Spotlight Launcher"""
+    global cached_apps, apps_last_scanned
+    now = time.time()
+    if cached_apps and (now - apps_last_scanned < 60):
+        return cached_apps
+
+    apps = []
+    seen = set()
+    dirs = [
+        os.path.expanduser("~/.local/share/applications"),
+        "/usr/local/share/applications",
+        "/usr/share/applications",
+        "/var/lib/flatpak/exports/share/applications"
+    ]
+    for d in dirs:
+        if not os.path.exists(d):
+            continue
+        for root, _, files in os.walk(d):
+            for file in files:
+                if not file.endswith(".desktop"):
+                    continue
+                path = os.path.join(root, file)
+                try:
+                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                        name, exec_cmd, icon, comment, nodisplay = "", "", "", "", False
+                        in_entry = False
+                        for line in f:
+                            line = line.strip()
+                            if line == "[Desktop Entry]":
+                                in_entry = True
+                            elif line.startswith("[") and in_entry:
+                                break
+                            elif in_entry:
+                                if line.startswith("Name=") and not name:
+                                    name = line[5:]
+                                elif line.startswith("Exec=") and not exec_cmd:
+                                    exec_cmd = line[5:].split(" %")[0]
+                                elif line.startswith("Icon=") and not icon:
+                                    icon = line[5:]
+                                elif line.startswith("Comment=") and not comment:
+                                    comment = line[8:]
+                                elif line == "NoDisplay=true":
+                                    nodisplay = True
+                        if name and exec_cmd and not nodisplay:
+                            if name.lower() not in seen:
+                                seen.add(name.lower())
+                                apps.append({
+                                    "name": name,
+                                    "exec": exec_cmd,
+                                    "icon": icon if icon else "application-x-executable",
+                                    "comment": comment,
+                                    "id": file
+                                })
+                except Exception:
+                    pass
+    apps.sort(key=lambda x: x["name"].lower())
+    cached_apps = apps
+    apps_last_scanned = now
+    return apps
+
 def eval_plasma_script(js_code):
     try:
         res = subprocess.run(
@@ -264,6 +350,35 @@ def ensure_virtual_desktops():
                     ["qdbus6", "org.kde.KWin", "/VirtualDesktopManager", "createDesktop", str(i - 1), f"Escritorio {i}"],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1.0
                 )
+    except Exception:
+        pass
+
+def ensure_serpanplasma_dock():
+    """Ensure bottom panel runs org.serpanplasma.dock with macOS zoom magnification"""
+    try:
+        eval_plasma_script('''
+            var p = panels();
+            for (var i = 0; i < p.length; i++) {
+                if (p[i].location === "bottom" || p[i].id === 82) {
+                    var ws = p[i].widgets();
+                    var hasSerpanDock = false;
+                    for (var j = 0; j < ws.length; j++) {
+                        if (ws[j].type === "org.serpanplasma.dock") {
+                            hasSerpanDock = true;
+                        }
+                    }
+                    if (!hasSerpanDock) {
+                        for (var j = 0; j < ws.length; j++) {
+                            if (ws[j].type === "org.kde.plasma.icontasks") {
+                                ws[j].remove();
+                            }
+                        }
+                        p[i].height = settings.get("dock_height", 54);
+                        p[i].addWidget("org.serpanplasma.dock");
+                    }
+                }
+            }
+        ''')
     except Exception:
         pass
 
@@ -706,7 +821,7 @@ def spawn_desktop_widgets():
     if not os.path.exists(w_path):
         return
     ensure_kwin_widget_rules()
-    w_env = os.environ.copy()
+    w_env = get_gui_env()
     w_env["QT_QPA_PLATFORM"] = "xcb"
     subprocess.Popen(["qml6", w_path], env=w_env)
     def _delayed_hide():
@@ -717,6 +832,7 @@ def spawn_desktop_widgets():
 
 def background_poller():
     ensure_virtual_desktops()
+    ensure_serpanplasma_dock()
     ensure_kwin_widget_rules()
     try:
         subprocess.run(["kwriteconfig6", "--file", "kxkbrc", "--group", "Layout", "--key", "LayoutList", "es,us", "--notify"], timeout=1.0)
@@ -778,6 +894,19 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 payload = json.dumps(combined).encode("utf-8")
             self.wfile.write(payload)
 
+        elif path == "/apps":
+            apps = get_installed_applications()
+            query = params.get("q", [""])[0].strip().lower()
+            if query:
+                filtered = [a for a in apps if query in a["name"].lower() or query in a.get("comment", "").lower() or query in a.get("exec", "").lower()]
+            else:
+                filtered = apps
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(filtered[:40]).encode("utf-8"))
+
         elif path == "/cmd":
             action = params.get("action", [""])[0]
             val = params.get("val", [""])[0]
@@ -790,8 +919,22 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 check = subprocess.run(["pgrep", "-f", "[S]ettingsWindow.qml"], stdout=subprocess.PIPE, text=True)
                 if check.stdout.strip():
                     subprocess.run(["pkill", "-f", "[S]ettingsWindow.qml"])
+                    time.sleep(0.15)
+                subprocess.Popen(["qml6", qml_path], env=get_gui_env())
+
+            elif action == "toggle_spotlight":
+                spot_path = os.path.join(home, ".local/share/serpanplasma/launcher/SpotlightLauncher.qml")
+                check = subprocess.run(["pgrep", "-f", "[S]potlightLauncher.qml"], stdout=subprocess.PIPE, text=True)
+                if check.stdout.strip():
+                    subprocess.run(["pkill", "-f", "[S]potlightLauncher.qml"])
                 else:
-                    subprocess.Popen(["qml6", qml_path], env=os.environ.copy())
+                    subprocess.Popen(["qml6", spot_path], env=get_gui_env())
+
+            elif action == "launch_app" and val:
+                subprocess.Popen(val, shell=True, env=get_gui_env())
+
+            elif action == "ensure_dock":
+                ensure_serpanplasma_dock()
 
             elif action == "play-pause":
                 subprocess.Popen(["playerctl", "play-pause"])
@@ -800,8 +943,13 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             elif action == "next":
                 subprocess.Popen(["playerctl", "next"])
             elif action == "desktop" and val:
-                # Switch desktop and ensure desktop exists
-                subprocess.Popen(["qdbus6", "org.kde.KWin", "/KWin", "org.kde.KWin.setCurrentDesktop", str(val)])
+                try:
+                    d_int = int(val)
+                    with lock:
+                        state["desktop"] = d_int
+                    subprocess.Popen(["qdbus6", "org.kde.KWin", "/KWin", "org.kde.KWin.setCurrentDesktop", str(d_int)])
+                except Exception:
+                    pass
             elif action == "ensure_desktops":
                 ensure_virtual_desktops()
             elif action == "launcher":

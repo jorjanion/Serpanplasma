@@ -23,6 +23,7 @@ PlasmoidItem {
         property bool mediaPlaying: false
         property int currentDesktop: 1
         property int totalDesktops: 8
+        property double lastDesktopClickTime: 0
         property string temp: "22.1°C"
         property string weatherFeelsLike: "21.0°C"
         property int weatherHumidity: 55
@@ -142,7 +143,11 @@ PlasmoidItem {
                         if (data.media_title !== undefined) barContainer.mediaTitle = data.media_title;
                         if (data.media_artist !== undefined) barContainer.mediaArtist = data.media_artist;
                         if (data.media_playing !== undefined) barContainer.mediaPlaying = data.media_playing;
-                        if (data.desktop !== undefined) barContainer.currentDesktop = data.desktop;
+                        if (data.desktop !== undefined) {
+                            if (Date.now() - barContainer.lastDesktopClickTime > 750 || data.desktop === barContainer.currentDesktop) {
+                                barContainer.currentDesktop = data.desktop;
+                            }
+                        }
                         if (data.temp !== undefined) barContainer.temp = data.temp;
                         if (data.weather_feels_like !== undefined) barContainer.weatherFeelsLike = data.weather_feels_like;
                         if (data.weather_humidity !== undefined) barContainer.weatherHumidity = data.weather_humidity;
@@ -318,7 +323,7 @@ PlasmoidItem {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
 
-                // Settings / Launcher Button
+                // Settings Button
                 Rectangle {
                     id: gearBtn
                     visible: barContainer.modSettings
@@ -350,22 +355,54 @@ PlasmoidItem {
                     }
                 }
 
-                // Workspaces (Active pill + 7 dots)
+                // Apple Spotlight Launcher Button
+                Rectangle {
+                    id: spotlightBtn
+                    width: 30
+                    height: 30
+                    radius: 9
+                    color: spotMouse.pressed ? barContainer.themeBorder : (spotMouse.containsMouse ? barContainer.themeCard : (barContainer.barDistinctPills ? barContainer.themeCard : "transparent"))
+                    border.color: barContainer.barDistinctPills ? barContainer.themeBorder : "transparent"
+                    border.width: barContainer.barDistinctPills ? 1 : 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    scale: spotMouse.pressed ? 0.92 : (spotMouse.containsMouse ? 1.05 : 1.0)
+                    Behavior on scale { NumberAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "󰍉"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 15
+                        color: spotMouse.containsMouse ? barContainer.themeAccent : barContainer.themeFg
+                    }
+
+                    MouseArea {
+                        id: spotMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: barContainer.sendCmd("toggle_spotlight")
+                    }
+                }
+
+                // Workspaces (Active pill + 7 dots - Rock-solid, zero container wobbling)
                 Rectangle {
                     id: wsContainer
                     visible: barContainer.modWorkspaces
                     height: 30
+                    width: 198
+                    implicitWidth: 198
                     radius: 10
                     color: barContainer.barDistinctPills ? barContainer.themeCard : (barContainer.isLightTheme ? "#e2e8f0" : "#141e33")
                     border.color: barContainer.barDistinctPills ? barContainer.themeBorder : "transparent"
                     border.width: barContainer.barDistinctPills ? 1 : 0
                     anchors.verticalCenter: parent.verticalCenter
-                    implicitWidth: wsRow.implicitWidth + 16
 
                     Row {
                         id: wsRow
                         anchors.centerIn: parent
-                        spacing: 7
+                        spacing: 6
 
                         Repeater {
                             model: 8
@@ -374,16 +411,15 @@ PlasmoidItem {
                                 required property int index
                                 property bool isActive: (index + 1) === barContainer.currentDesktop
 
-                                height: 16
+                                height: 14
                                 width: isActive ? 34 : 14
-                                radius: 8
+                                radius: 7
                                 color: isActive ? barContainer.themeAccent : (wsMouse.containsMouse ? barContainer.themeMuted : (barContainer.isLightTheme ? "#cbd5e1" : "#334155"))
-                                anchors.verticalCenter: parent.verticalCenter
 
-                                Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-                                Behavior on color { ColorAnimation { duration: 200 } }
-                                scale: wsMouse.pressed ? 0.9 : 1.0
-                                Behavior on scale { NumberAnimation { duration: 150 } }
+                                Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                                Behavior on color { ColorAnimation { duration: 180 } }
+                                scale: wsMouse.pressed ? 0.88 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 120 } }
 
                                 MouseArea {
                                     id: wsMouse
@@ -391,6 +427,7 @@ PlasmoidItem {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
+                                        barContainer.lastDesktopClickTime = Date.now();
                                         barContainer.currentDesktop = index + 1;
                                         barContainer.sendCmd("desktop", index + 1);
                                     }

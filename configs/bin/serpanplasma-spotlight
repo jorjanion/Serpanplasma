@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Serpanplasma Spotlight Launcher Wrapper
+curl -s "http://127.0.0.1:19842/cmd?action=toggle_spotlight" >/dev/null 2>&1 || qml6 "$HOME/.local/share/serpanplasma/launcher/SpotlightLauncher.qml"

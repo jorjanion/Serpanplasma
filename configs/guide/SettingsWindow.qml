@@ -1008,7 +1008,18 @@ ApplicationWindow {
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Slider { id: dockSlider; Layout.fillWidth: true; from: 44; to: 68; value: window.dockHeight; stepSize: 1 }
+                                    Slider {
+                                        id: dockSlider
+                                        Layout.fillWidth: true
+                                        from: 38
+                                        to: 80
+                                        value: window.dockHeight
+                                        stepSize: 1
+                                        onMoved: {
+                                            window.dockHeight = Math.round(dockSlider.value);
+                                            window.sendCmd("set_dock_height", window.dockHeight);
+                                        }
+                                    }
                                     Rectangle {
                                         width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
                                         Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
@@ -1032,7 +1043,18 @@ ApplicationWindow {
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Slider { id: dockOpacitySlider; Layout.fillWidth: true; from: 20; to: 100; value: window.dockOpacity; stepSize: 5 }
+                                    Slider {
+                                        id: dockOpacitySlider
+                                        Layout.fillWidth: true
+                                        from: 20
+                                        to: 100
+                                        value: window.dockOpacity
+                                        stepSize: 5
+                                        onMoved: {
+                                            window.dockOpacity = Math.round(dockOpacitySlider.value);
+                                            window.sendCmd("set_dock_opacity", window.dockOpacity);
+                                        }
+                                    }
                                     Rectangle {
                                         width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
                                         Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
@@ -1050,13 +1072,24 @@ ApplicationWindow {
                                 // Hover Scale Slider
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Text { text: "󰍔 Efecto de escala al pasar el ratón (Hover Scale)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
+                                    Text { text: "󰍔 Efecto de zoom macOS al pasar el ratón (Magnificación)"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; color: "#cbd5e1" }
                                     Item { Layout.fillWidth: true }
                                     Text { text: Math.round(hoverScaleSlider.value) + " %"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.weight: Font.Bold; color: "#38bdf8" }
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Slider { id: hoverScaleSlider; Layout.fillWidth: true; from: 100; to: 140; value: window.hoverScale; stepSize: 5 }
+                                    Slider {
+                                        id: hoverScaleSlider
+                                        Layout.fillWidth: true
+                                        from: 100
+                                        to: 180
+                                        value: window.hoverScale
+                                        stepSize: 5
+                                        onMoved: {
+                                            window.hoverScale = Math.round(hoverScaleSlider.value);
+                                            window.sendCmd("set_hover_scale", window.hoverScale);
+                                        }
+                                    }
                                     Rectangle {
                                         width: 76; height: 26; radius: 6; color: "#1e293b"; border.color: "#38bdf8"; border.width: 1
                                         Text { anchors.centerIn: parent; text: "Guardar"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.weight: Font.Bold; color: "#38bdf8" }
