@@ -354,27 +354,38 @@ def ensure_virtual_desktops():
         pass
 
 def ensure_serpanplasma_dock():
-    """Ensure bottom panel runs org.serpanplasma.dock with macOS zoom magnification"""
+    """Ensure bottom panel runs stable org.kde.plasma.icontasks"""
     try:
         eval_plasma_script('''
             var p = panels();
             for (var i = 0; i < p.length; i++) {
                 if (p[i].location === "bottom" || p[i].id === 82) {
                     var ws = p[i].widgets();
-                    var hasSerpanDock = false;
+                    var hasIconTasks = false;
                     for (var j = 0; j < ws.length; j++) {
-                        if (ws[j].type === "org.serpanplasma.dock") {
-                            hasSerpanDock = true;
+                        if (ws[j].type === "org.kde.plasma.icontasks") {
+                            hasIconTasks = true;
                         }
                     }
-                    if (!hasSerpanDock) {
+                    if (!hasIconTasks) {
                         for (var j = 0; j < ws.length; j++) {
-                            if (ws[j].type === "org.kde.plasma.icontasks") {
-                                ws[j].remove();
-                            }
+                            ws[j].remove();
                         }
                         p[i].height = settings.get("dock_height", 54);
-                        p[i].addWidget("org.serpanplasma.dock");
+                        p[i].floating = true;
+                        p[i].alignment = "center";
+                        p[i].lengthMode = "fit";
+                        var t = p[i].addWidget("org.kde.plasma.icontasks");
+                        t.currentConfigGroup = ["General"];
+                        t.writeConfig("launchers", [
+                            "applications:org.serpanplasma.spotlight.desktop",
+                            "applications:org.kde.dolphin.desktop",
+                            "preferred://browser",
+                            "applications:org.kde.konsole.desktop",
+                            "applications:discord.desktop",
+                            "applications:spotify-launcher.desktop",
+                            "applications:systemsettings.desktop"
+                        ]);
                     }
                 }
             }
@@ -768,40 +779,42 @@ def update_lang():
             state["lang"] = "ES"
 
 def ensure_kwin_widget_rules():
-    """Ensure KWin rules exist to hide Serpanplasma desktop widgets from taskbar and pager"""
+    """Ensure KWin rules exist to hide Serpanplasma desktop widgets from taskbar, alt-tab switcher and pager"""
     try:
         home = os.path.expanduser("~")
         kwinrules_path = os.path.join(home, ".config/kwinrulesrc")
         rule_content = """[General]
+count=1
 rules=SerpanplasmaWidgets
 
 [SerpanplasmaWidgets]
-description=Hide Serpanplasma Widgets from Taskbar
+description=Serpanplasma Desktop Widgets
 wmclass=qml6
 wmclasscomplete=false
 wmclassmatch=1
-title=Serpanplasma
-titlematch=2
+title=Serpanplasma.*Widget
+titlematch=3
 skiptaskbar=true
 skiptaskbarrule=2
 skippager=true
 skippagerrule=2
+skipswitcher=true
+skipswitcherrule=2
 below=true
 belowrule=2
+acceptfocus=false
+acceptfocusrule=2
+type=3
+typerule=2
 """
-        existing = ""
-        if os.path.exists(kwinrules_path):
-            with open(kwinrules_path, "r") as f:
-                existing = f.read()
-        if "SerpanplasmaWidgets" not in existing:
-            with open(kwinrules_path, "w") as f:
-                f.write(existing.strip() + "\n\n" + rule_content)
-            subprocess.run(["qdbus6", "org.kde.KWin", "/KWin", "reconfigure"], timeout=2.0)
+        with open(kwinrules_path, "w") as f:
+            f.write(rule_content)
+        subprocess.run(["qdbus6", "org.kde.KWin", "/KWin", "reconfigure"], timeout=2.0)
     except Exception:
         pass
 
 def hide_widgets_from_taskbar():
-    """Apply skip_taskbar and skip_pager to Serpanplasma widget windows"""
+    """Apply skip_taskbar, skip_pager, skip_switcher, below and desktop window type to Serpanplasma widget windows"""
     try:
         widgets = [
             "Serpanplasma Hardware Widget",
@@ -810,7 +823,8 @@ def hide_widgets_from_taskbar():
             "Serpanplasma Music Widget"
         ]
         for w in widgets:
-            subprocess.run(["wmctrl", "-r", w, "-b", "add,skip_taskbar,skip_pager"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            subprocess.run(["xprop", "-name", w, "-f", "_NET_WM_WINDOW_TYPE", "32a", "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DESKTOP"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            subprocess.run(["wmctrl", "-r", w, "-b", "add,skip_taskbar,skip_pager,below"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
     except Exception:
         pass
 
@@ -1029,6 +1043,8 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                         }}
                     }}
                 ''')
+                p_vis = 2 if val == "dodgewindows" else (1 if val == "autohide" else (3 if val == "windowscover" else 0))
+                subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "82", "--key", "panelVisibility", str(p_vis)])
                 save_setting("dock_visibility", val)
 
             elif action == "set_dock_layer":
@@ -1042,6 +1058,8 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                         }}
                     }}
                 ''')
+                p_vis = 0 if is_top else (2 if settings.get("dock_visibility", "dodgewindows") == "dodgewindows" else 1)
+                subprocess.run(["kwriteconfig6", "--file", "plasma-org.kde.plasma.desktop-appletsrc", "--group", "Containments", "--group", "82", "--key", "panelVisibility", str(p_vis)])
                 save_setting("dock_layer_top", is_top)
 
             elif action == "set_dock_exclusive":

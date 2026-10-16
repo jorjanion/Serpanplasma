@@ -29,10 +29,22 @@ var barApplet = topBar.addWidget("org.serpanplasma.bar");
 // 4. Create the Bottom Floating Application Dock
 var dock = new Panel;
 dock.location = "bottom";
-dock.height = 76;
+dock.height = 54;
 dock.floating = true;
 dock.alignment = "center";
 dock.lengthMode = "fit";
 
-var tasks = dock.addWidget("org.serpanplasma.dock");
+var tasks = dock.addWidget("org.kde.plasma.icontasks");
+tasks.currentConfigGroup = ["General"];
+tasks.writeConfig("launchers", [
+    "applications:org.serpanplasma.spotlight.desktop",
+    "applications:org.kde.dolphin.desktop",
+    "preferred://browser",
+    "applications:org.kde.konsole.desktop",
+    "applications:discord.desktop",
+    "applications:spotify-launcher.desktop",
+    "applications:systemsettings.desktop"
+]);
+tasks.writeConfig("fill", false);
+tasks.writeConfig("maxStripes", 1);
 
