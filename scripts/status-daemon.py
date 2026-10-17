@@ -606,8 +606,14 @@ def update_weather():
     except Exception:
         pass
 
+last_media_check = 0
+
 def update_media():
-    global state
+    global state, last_media_check
+    now = time.time()
+    if now - last_media_check < 2.0 and last_media_check != 0:
+        return
+    last_media_check = now
     m_status = run_cmd(["playerctl", "status"])
     if m_status in ("Playing", "Paused"):
         info = run_cmd(["playerctl", "metadata", "--format", "{{title}}:::{{artist}}"])
@@ -626,8 +632,10 @@ def update_media():
             state["media_title"] = "No hay nada reprc"
             state["media_artist"] = ""
 
+prev_battery_charging = None
+
 def update_battery():
-    global state
+    global state, prev_battery_charging
     bat_dirs = [d for d in os.listdir("/sys/class/power_supply") if d.startswith("BAT")] if os.path.exists("/sys/class/power_supply") else []
     if bat_dirs:
         b_dir = os.path.join("/sys/class/power_supply", bat_dirs[0])
@@ -640,6 +648,16 @@ def update_battery():
             icons = ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
             idx = min(max(int(cap / 10) - 1, 0), 9)
             icon = "󰂄" if charging else icons[idx]
+
+            # Auto power-saver display adjustment when power state changes
+            if prev_battery_charging is not None and prev_battery_charging != charging:
+                cur_prof = state.get("power_profile", "balanced")
+                if not charging and cur_prof in ("power-saver", "balanced"):
+                    subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@60"], env=get_gui_env())
+                elif charging and cur_prof == "performance":
+                    subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@144"], env=get_gui_env())
+            prev_battery_charging = charging
+
             with lock:
                 state["battery"] = cap
                 state["battery_str"] = f"{cap}%"
@@ -648,44 +666,64 @@ def update_battery():
         except Exception:
             pass
 
-def update_network():
-    global state
-    ssid = run_cmd(["bash", "-c", "nmcli -t -f active,ssid dev wifi 2>/dev/null | grep '^yes' | cut -d: -f2 | head -n 1"])
-    ip = run_cmd(["bash", "-c", "ip -4 addr show scope global 2>/dev/null | grep inet | awk '{print $2}' | cut -d/ -f1 | head -n 1"])
-    if not ip:
-        ip = "127.0.0.1"
+last_net_check = 0
+cached_ssid = "Connected"
+cached_local_ip = "127.0.0.1"
 
-    if not ssid:
-        eth = run_cmd(["bash", "-c", "cat /sys/class/net/e*/operstate 2>/dev/null | grep up | head -n 1"])
-        if eth:
-            with lock:
-                state["network"] = "Connected"
-                state["network_ssid"] = "Ethernet"
-                state["network_icon"] = "󰈀"
-                state["local_ip"] = ip
-            return
-        gw = run_cmd(["bash", "-c", "ip route show default 2>/dev/null | head -n 1"])
-        if gw:
-            with lock:
-                state["network"] = "Connected"
-                state["network_ssid"] = "Connected"
-                state["network_icon"] = "󰤨"
-                state["local_ip"] = ip
-        else:
-            with lock:
-                state["network"] = "Disconnected"
-                state["network_ssid"] = "Disconnected"
-                state["network_icon"] = "󰤭"
-                state["local_ip"] = ip
-    else:
-        with lock:
-            state["network"] = "Connected"
-            state["network_ssid"] = ssid if ssid else "Connected"
-            state["network_icon"] = "󰤨"
-            state["local_ip"] = ip
+def get_local_ip():
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+def update_network():
+    global state, last_net_check, cached_ssid, cached_local_ip
+    now = time.time()
+    if now - last_net_check >= 10.0 or last_net_check == 0:
+        last_net_check = now
+        cached_local_ip = get_local_ip()
+        ssid = ""
+        try:
+            res = subprocess.run(["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=1.5)
+            for line in res.stdout.splitlines():
+                if line.startswith("yes:"):
+                    ssid = line.split(":", 1)[1]
+                    break
+        except Exception:
+            pass
+        if not ssid:
+            try:
+                eth_paths = [f for f in os.listdir("/sys/class/net") if f.startswith("e") or f.startswith("en")]
+                for ep in eth_paths:
+                    with open(f"/sys/class/net/{ep}/operstate") as f:
+                        if f.read().strip() == "up":
+                            ssid = "Ethernet"
+                            break
+            except Exception:
+                pass
+        cached_ssid = ssid
+
+    is_connected = (cached_ssid != "" or cached_local_ip != "127.0.0.1")
+    icon = "󰈀" if cached_ssid == "Ethernet" else ("󰤨" if is_connected else "󰤭")
+    with lock:
+        state["network"] = "Connected" if is_connected else "Disconnected"
+        state["network_ssid"] = cached_ssid if cached_ssid else ("Connected" if is_connected else "Disconnected")
+        state["network_icon"] = icon
+        state["local_ip"] = cached_local_ip
+
+last_ws_check = 0
 
 def update_workspaces():
-    global state
+    global state, last_ws_check
+    now = time.time()
+    if now - last_ws_check < 1.5 and last_ws_check != 0:
+        return
+    last_ws_check = now
     cur = run_cmd(["qdbus6", "org.kde.KWin", "/KWin", "org.kde.KWin.currentDesktop"])
     try:
         cur_int = int(cur) if cur else 1
@@ -695,8 +733,14 @@ def update_workspaces():
         state["desktop"] = cur_int
         state["desktops_count"] = 8
 
+last_vol_check = 0
+
 def update_volume():
-    global state
+    global state, last_vol_check
+    now = time.time()
+    if now - last_vol_check < 1.5 and last_vol_check != 0:
+        return
+    last_vol_check = now
     wp = run_cmd(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
     if wp:
         parts = wp.split()
@@ -761,8 +805,16 @@ def update_system_metrics():
     except Exception:
         uptime_str = "1h"
 
-    # Power profile
-    prof = run_cmd(["powerprofilesctl", "get"])
+    # Power profile (read sysfs directly, zero process forks)
+    prof = None
+    try:
+        if os.path.exists("/sys/firmware/acpi/platform_profile"):
+            with open("/sys/firmware/acpi/platform_profile", "r") as f:
+                raw_p = f.read().strip()
+                prof_map = {"low-power": "power-saver", "balanced": "balanced", "performance": "performance"}
+                prof = prof_map.get(raw_p, raw_p)
+    except Exception:
+        pass
     if not prof:
         prof = settings.get("power_profile", "performance")
 
@@ -835,8 +887,14 @@ def update_public_ip():
     except Exception:
         pass
 
+last_audio_dev_check = 0
+
 def update_audio_devices():
-    global state
+    global state, last_audio_dev_check
+    now = time.time()
+    if now - last_audio_dev_check < 8.0 and last_audio_dev_check != 0:
+        return
+    last_audio_dev_check = now
     try:
         default_sink = run_cmd(["pactl", "get-default-sink"])
         res = subprocess.run(["pactl", "-f", "json", "list", "sinks"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=1.5)
@@ -873,8 +931,14 @@ def update_audio_devices():
     except Exception:
         pass
 
+last_lang_check = 0
+
 def update_lang():
-    global state
+    global state, last_lang_check
+    now = time.time()
+    if now - last_lang_check < 5.0 and last_lang_check != 0:
+        return
+    last_lang_check = now
     try:
         res = subprocess.run(["qdbus6", "org.kde.keyboard", "/Layouts", "org.kde.KeyboardLayouts.getLayout"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=0.5)
         out = res.stdout.strip()
@@ -969,13 +1033,11 @@ def background_poller():
     while True:
         try:
             loop_count += 1
-            if loop_count % 6 == 0:
+            if loop_count % 15 == 0:
                 if settings.get("desktop_widgets", False):
-                    check = subprocess.run(["pgrep", "-f", "[D]esktopWidgets.qml"], stdout=subprocess.PIPE, text=True)
+                    check = subprocess.run(["pgrep", "-f", "^qml6 .*DesktopWidgets\\.qml"], stdout=subprocess.PIPE, text=True)
                     if not check.stdout.strip():
                         spawn_desktop_widgets()
-            if loop_count % 4 == 0 and settings.get("desktop_widgets", False):
-                hide_widgets_from_taskbar()
             update_weather()
             update_media()
             update_battery()
@@ -989,7 +1051,8 @@ def background_poller():
             update_lang()
         except Exception:
             pass
-        time.sleep(0.5)
+        is_charging = state.get("battery_charging", True)
+        time.sleep(1.5 if is_charging else 2.0)
 
 class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -1176,6 +1239,26 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 save_setting("power_profile", val)
                 with lock:
                     state["power_profile"] = val
+
+                if val == "power-saver":
+                    # 1. Switch display to 60Hz to save ~3-4W
+                    subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@60"], env=get_gui_env())
+                    # 2. If brightness is very high, adjust to energy-efficient 60%
+                    try:
+                        cur_b = int(subprocess.check_output(["brightnessctl", "get"]).decode().strip())
+                        max_b = int(subprocess.check_output(["brightnessctl", "max"]).decode().strip())
+                        if (cur_b / max_b) > 0.65:
+                            subprocess.Popen(["brightnessctl", "set", "60%"])
+                    except Exception:
+                        pass
+                elif val == "performance":
+                    # Restore full 144Hz
+                    subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@144"], env=get_gui_env())
+                elif val == "balanced":
+                    # Adapt display refresh rate based on power state
+                    is_charging = state.get("battery_charging", True)
+                    mode = "1920x1080@144" if is_charging else "1920x1080@60"
+                    subprocess.Popen(["kscreen-doctor", f"output.eDP-1.mode.{mode}"], env=get_gui_env())
 
             # --- DOCK CONTROLS ---
             elif action == "set_dock_floating":

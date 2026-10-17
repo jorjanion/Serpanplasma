@@ -162,7 +162,7 @@ QtObject {
     }
 
     property var metricsTimer: Timer {
-        interval: 800
+        interval: 2000
         running: true
         repeat: true
         onTriggered: root.fetchMetrics()

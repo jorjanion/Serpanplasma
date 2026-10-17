@@ -102,7 +102,7 @@ PlasmoidItem {
         }
 
         Timer {
-            interval: 500
+            interval: 1000
             running: true
             repeat: true
             onTriggered: barContainer.updateDateTime()
@@ -219,7 +219,7 @@ PlasmoidItem {
         }
 
         Timer {
-            interval: 500
+            interval: 1500
             running: true
             repeat: true
             onTriggered: barContainer.fetchStatus()
