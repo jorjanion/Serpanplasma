@@ -1243,22 +1243,30 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 if val == "power-saver":
                     # 1. Switch display to 60Hz to save ~3-4W
                     subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@60"], env=get_gui_env())
-                    # 2. If brightness is very high, adjust to energy-efficient 60%
+                    # 2. Adjust brightness to highly energy-efficient 45%
                     try:
                         cur_b = int(subprocess.check_output(["brightnessctl", "get"]).decode().strip())
                         max_b = int(subprocess.check_output(["brightnessctl", "max"]).decode().strip())
-                        if (cur_b / max_b) > 0.65:
-                            subprocess.Popen(["brightnessctl", "set", "60%"])
+                        if (cur_b / max_b) > 0.50:
+                            subprocess.Popen(["brightnessctl", "set", "45%"])
                     except Exception:
                         pass
                 elif val == "performance":
                     # Restore full 144Hz
                     subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@144"], env=get_gui_env())
                 elif val == "balanced":
-                    # Adapt display refresh rate based on power state
+                    # Adapt display refresh rate and brightness based on power state
                     is_charging = state.get("battery_charging", True)
                     mode = "1920x1080@144" if is_charging else "1920x1080@60"
                     subprocess.Popen(["kscreen-doctor", f"output.eDP-1.mode.{mode}"], env=get_gui_env())
+                    if not is_charging:
+                        try:
+                            cur_b = int(subprocess.check_output(["brightnessctl", "get"]).decode().strip())
+                            max_b = int(subprocess.check_output(["brightnessctl", "max"]).decode().strip())
+                            if (cur_b / max_b) > 0.70:
+                                subprocess.Popen(["brightnessctl", "set", "60%"])
+                        except Exception:
+                            pass
 
             # --- DOCK CONTROLS ---
             elif action == "set_dock_floating":
