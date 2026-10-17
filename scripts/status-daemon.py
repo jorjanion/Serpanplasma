@@ -56,6 +56,7 @@ DEFAULT_SETTINGS = {
     "wallpaper_interval": 900,
     "desktop_widgets": False,
     "power_profile": "performance",
+    "last_battery_profile": "power-saver",
     "widgets": {
         "hw": {"enabled": True, "x": 60, "y": 80},
         "clock": {"enabled": True, "x": 480, "y": 80},
@@ -632,10 +633,124 @@ def update_media():
             state["media_title"] = "No hay nada reprc"
             state["media_artist"] = ""
 
-prev_battery_charging = None
+def is_ac_online():
+    """Check if AC adapter or USB-PD charger is currently online via sysfs"""
+    base = "/sys/class/power_supply"
+    if os.path.exists(base):
+        try:
+            for ps in os.listdir(base):
+                type_path = os.path.join(base, ps, "type")
+                online_path = os.path.join(base, ps, "online")
+                if os.path.exists(type_path) and os.path.exists(online_path):
+                    with open(type_path, "r") as f:
+                        ps_type = f.read().strip()
+                    if ps_type != "Battery":
+                        with open(online_path, "r") as f:
+                            if f.read().strip() == "1":
+                                return True
+        except Exception:
+            pass
+    return state.get("battery_charging", False)
+
+def apply_power_profile(val, from_user=False):
+    """Apply system power profile, refresh rate, brightness, and manage battery profile memory."""
+    if val not in ("performance", "balanced", "power-saver"):
+        val = "balanced"
+
+    try:
+        subprocess.run(["powerprofilesctl", "set", val], timeout=1.5)
+    except Exception:
+        pass
+
+    save_setting("power_profile", val)
+
+    # If change was initiated by the user, remember their preferred battery profile
+    if from_user:
+        if not is_ac_online():
+            save_setting("last_battery_profile", val)
+        elif val != "performance":
+            save_setting("last_battery_profile", val)
+
+    with lock:
+        state["power_profile"] = val
+
+    env = get_gui_env()
+    if val == "power-saver":
+        # 60Hz display refresh rate saves ~3-4W
+        subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@60"], env=env)
+        try:
+            cur_b = int(subprocess.check_output(["brightnessctl", "get"]).decode().strip())
+            max_b = int(subprocess.check_output(["brightnessctl", "max"]).decode().strip())
+            if (cur_b / max_b) > 0.50:
+                subprocess.Popen(["brightnessctl", "set", "45%"])
+        except Exception:
+            pass
+    elif val == "performance":
+        # Restore full 144Hz
+        subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@144"], env=env)
+    elif val == "balanced":
+        ac = is_ac_online()
+        mode = "1920x1080@144" if ac else "1920x1080@60"
+        subprocess.Popen(["kscreen-doctor", f"output.eDP-1.mode.{mode}"], env=env)
+        if not ac:
+            try:
+                cur_b = int(subprocess.check_output(["brightnessctl", "get"]).decode().strip())
+                max_b = int(subprocess.check_output(["brightnessctl", "max"]).decode().strip())
+                if (cur_b / max_b) > 0.70:
+                    subprocess.Popen(["brightnessctl", "set", "60%"])
+            except Exception:
+                pass
+
+prev_ac_online = None
+power_transition_lock = threading.Lock()
+
+def check_power_source_transition():
+    global prev_ac_online
+    with power_transition_lock:
+        ac_now = is_ac_online()
+        if prev_ac_online is None:
+            prev_ac_online = ac_now
+            # Ensure last_battery_profile is tracked in settings
+            if "last_battery_profile" not in settings:
+                saved_prof = settings.get("power_profile", "power-saver")
+                save_setting("last_battery_profile", saved_prof if saved_prof != "performance" else "power-saver")
+            if ac_now:
+                # Charger is connected on startup: switch to max performance
+                apply_power_profile("performance", from_user=False)
+            else:
+                # Running on battery on startup: restore saved battery profile
+                target = settings.get("last_battery_profile", "power-saver")
+                apply_power_profile(target, from_user=False)
+            return
+
+        if prev_ac_online != ac_now:
+            prev_ac_online = ac_now
+            if ac_now:
+                # Charger PLUGGED IN -> switch to max performance
+                current = settings.get("power_profile", state.get("power_profile", "power-saver"))
+                if current != "performance":
+                    save_setting("last_battery_profile", current)
+                apply_power_profile("performance", from_user=False)
+            else:
+                # Charger UNPLUGGED -> restore previous battery profile
+                target = settings.get("last_battery_profile", "power-saver")
+                apply_power_profile(target, from_user=False)
+
+def uevent_power_listener():
+    try:
+        s = socket.socket(socket.AF_NETLINK, socket.SOCK_DGRAM, 15)
+        s.bind((0, 1))
+        while True:
+            data = s.recv(4096)
+            if b"SUBSYSTEM=power_supply" in data:
+                check_power_source_transition()
+    except Exception:
+        pass
 
 def update_battery():
-    global state, prev_battery_charging
+    global state
+    check_power_source_transition()
+
     bat_dirs = [d for d in os.listdir("/sys/class/power_supply") if d.startswith("BAT")] if os.path.exists("/sys/class/power_supply") else []
     if bat_dirs:
         b_dir = os.path.join("/sys/class/power_supply", bat_dirs[0])
@@ -644,19 +759,11 @@ def update_battery():
                 cap = int(f.read().strip())
             with open(os.path.join(b_dir, "status"), "r") as f:
                 b_stat = f.read().strip()
-            charging = (b_stat == "Charging")
+            ac_online = is_ac_online()
+            charging = (b_stat == "Charging") or ac_online
             icons = ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
             idx = min(max(int(cap / 10) - 1, 0), 9)
             icon = "󰂄" if charging else icons[idx]
-
-            # Auto power-saver display adjustment when power state changes
-            if prev_battery_charging is not None and prev_battery_charging != charging:
-                cur_prof = state.get("power_profile", "balanced")
-                if not charging and cur_prof in ("power-saver", "balanced"):
-                    subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@60"], env=get_gui_env())
-                elif charging and cur_prof == "performance":
-                    subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@144"], env=get_gui_env())
-            prev_battery_charging = charging
 
             with lock:
                 state["battery"] = cap
@@ -816,7 +923,7 @@ def update_system_metrics():
     except Exception:
         pass
     if not prof:
-        prof = settings.get("power_profile", "performance")
+        prof = state.get("power_profile", settings.get("power_profile", "performance"))
 
     with lock:
         state["cpu_pct"] = cpu_pct
@@ -1235,38 +1342,7 @@ class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
             # --- POWER PROFILE ---
             elif action == "set_power_profile" and val:
-                subprocess.run(["powerprofilesctl", "set", val])
-                save_setting("power_profile", val)
-                with lock:
-                    state["power_profile"] = val
-
-                if val == "power-saver":
-                    # 1. Switch display to 60Hz to save ~3-4W
-                    subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@60"], env=get_gui_env())
-                    # 2. Adjust brightness to highly energy-efficient 45%
-                    try:
-                        cur_b = int(subprocess.check_output(["brightnessctl", "get"]).decode().strip())
-                        max_b = int(subprocess.check_output(["brightnessctl", "max"]).decode().strip())
-                        if (cur_b / max_b) > 0.50:
-                            subprocess.Popen(["brightnessctl", "set", "45%"])
-                    except Exception:
-                        pass
-                elif val == "performance":
-                    # Restore full 144Hz
-                    subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@144"], env=get_gui_env())
-                elif val == "balanced":
-                    # Adapt display refresh rate and brightness based on power state
-                    is_charging = state.get("battery_charging", True)
-                    mode = "1920x1080@144" if is_charging else "1920x1080@60"
-                    subprocess.Popen(["kscreen-doctor", f"output.eDP-1.mode.{mode}"], env=get_gui_env())
-                    if not is_charging:
-                        try:
-                            cur_b = int(subprocess.check_output(["brightnessctl", "get"]).decode().strip())
-                            max_b = int(subprocess.check_output(["brightnessctl", "max"]).decode().strip())
-                            if (cur_b / max_b) > 0.70:
-                                subprocess.Popen(["brightnessctl", "set", "60%"])
-                        except Exception:
-                            pass
+                apply_power_profile(val, from_user=True)
 
             # --- DOCK CONTROLS ---
             elif action == "set_dock_floating":
@@ -1653,6 +1729,9 @@ def main():
     ensure_virtual_desktops()
     poller = threading.Thread(target=background_poller, daemon=True)
     poller.start()
+
+    uevent_th = threading.Thread(target=uevent_power_listener, daemon=True)
+    uevent_th.start()
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), HTTPRequestHandler)
     try:
