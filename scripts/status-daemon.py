@@ -648,9 +648,10 @@ def is_ac_online():
                         with open(online_path, "r") as f:
                             if f.read().strip() == "1":
                                 return True
+            return False
         except Exception:
             pass
-    return state.get("battery_charging", False)
+    return False
 
 def apply_power_profile(val, from_user=False):
     """Apply system power profile, refresh rate, brightness, and manage battery profile memory."""
@@ -679,15 +680,17 @@ def apply_power_profile(val, from_user=False):
         # 60Hz display refresh rate saves ~3-4W
         subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@60"], env=env)
         try:
-            cur_b = int(subprocess.check_output(["brightnessctl", "get"]).decode().strip())
-            max_b = int(subprocess.check_output(["brightnessctl", "max"]).decode().strip())
-            if (cur_b / max_b) > 0.50:
-                subprocess.Popen(["brightnessctl", "set", "45%"])
+            subprocess.Popen(["brightnessctl", "set", "45%"])
         except Exception:
             pass
     elif val == "performance":
         # Restore full 144Hz
         subprocess.Popen(["kscreen-doctor", "output.eDP-1.mode.1920x1080@144"], env=env)
+        # Increase brightness to 80% in max performance
+        try:
+            subprocess.Popen(["brightnessctl", "set", "80%"])
+        except Exception:
+            pass
     elif val == "balanced":
         ac = is_ac_online()
         mode = "1920x1080@144" if ac else "1920x1080@60"
@@ -743,7 +746,7 @@ def uevent_power_listener():
         while True:
             data = s.recv(4096)
             if b"SUBSYSTEM=power_supply" in data:
-                check_power_source_transition()
+                update_battery()
     except Exception:
         pass
 
